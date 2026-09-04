@@ -325,23 +325,23 @@ export default function WeatherPage() {
         <div className="cemadem-stats">
           <div className="cemadem-title">⚠️ Alertas CEMADEN</div>
           <div className="cemadem-counts">
-            <div className={`cemade-card cemde-danger`}>
+            <div className={`cemade-card cemade-danger`}>
               <div className="cemade-num">{cemadem?.muitoAlto ?? 0}</div>
               <div className="cemade-label">Muito Alto</div>
             </div>
-            <div className={`cemade-card cemde-warning`}>
+            <div className={`cemade-card cemade-warning`}>
               <div className="cemade-num">{cemadem?.alto ?? 0}</div>
               <div className="cemade-label">Alto</div>
             </div>
-            <div className={`cemade-card cemde-moderado`}>
+            <div className={`cemade-card cemade-moderado`}>
               <div className="cemade-num">{cemadem?.moderado ?? 0}</div>
               <div className="cemade-label">Moderado</div>
             </div>
-            <div className={`cemade-card cemde-geo`}>
+            <div className={`cemade-card cemade-geo`}>
               <div className="cemade-num">{cemadem?.geo ?? 0}</div>
               <div className="cemade-label">Mov. Massa</div>
             </div>
-            <div className={`cemade-card cemde-hidro`}>
+            <div className={`cemade-card cemade-hidro`}>
               <div className="cemade-num">{cemadem?.hidro ?? 0}</div>
               <div className="cemade-label">Risco Hidro.</div>
             </div>
