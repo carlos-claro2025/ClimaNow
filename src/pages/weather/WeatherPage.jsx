@@ -72,6 +72,7 @@ export default function WeatherPage() {
 
   useEffect(() => {
     localStorage.setItem('clima-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
     setParams({ cidade: city, tema: themeToUrl(theme) }, { replace: true });
   }, [theme]);
 
