@@ -487,3 +487,69 @@ button {
     animation: none;
   }
 }
+
+/* ─── CEMADEN alert stats ─── */
+.cemadem-stats {
+  max-width: 760px;
+  margin: 16px auto 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--card-bg, var(--panel-soft));
+  backdrop-filter: blur(8px);
+}
+.cemadem-title {
+  padding: 10px 14px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.3px;
+}
+.cemadem-counts {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+.cemade-card {
+  padding: 18px 8px 14px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  transition: background 0.2s;
+}
+.cemade-card:last-child {
+  border-right: none;
+}
+.cemade-num {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.cemade-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.cemade-danger   { background: rgba(239,68,68,.13); }
+.cemade-danger .cemade-num { color: #f87171; }
+.cemade-warning  { background: rgba(245,158,11,.12); }
+.cemade-warning .cemade-num { color: #fbbf24; }
+.cemade-moderado { background: rgba(234,179,8,.10); }
+.cemade-moderado .cemade-num { color: #eab308; }
+.cemade-geo      { background: rgba(255,99,71,.10); }
+.cemade-geo .cemade-num     { color: #fb923c; }
+.cemade-hidro    { background: rgba(30,144,255,.10); }
+.cemade-hidro .cemade-num   { color: #60a5fa; }
+
+.cemadem-stats:hover .cemade-card { opacity: 0.85; }
+.cemadem-stats:hover .cemade-card:hover { opacity: 1; }
+
+@media (max-width: 640px) {
+  .cemadem-counts {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .cemade-card:nth-child(4) { grid-column: 1 / 2; }
+  .cemade-card:nth-child(5) { grid-column: 2 / 4; }
+}

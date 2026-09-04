@@ -138,20 +138,24 @@ export default function WeatherPage() {
 
   async function loadCemadem() {
     try {
-      const res = await fetch('https://alertas.inmet.gov.br/api/AlertaAtual/Ultimo');
+      const res = await fetch('https://painelalertas.cemaden.gov.br/wsAlertas2');
       if (!res.ok) throw new Error('network');
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        setCemadem(data.slice(0, 5).map((x) => ({
-          message: x.Mensagem || x.mensagem || 'Alerta do CEMADEM',
-          cidade: x.Cidade || x.cidade || '',
-          estado: x.Estado || x.estado || '',
-          nivel: x.NivelAlerta || x.nivel || '',
-          data: x.DataInicio || x.data || ''
-        })));
+      const json = await res.json();
+      const alertas = Array.isArray(json.alertas) ? json.alertas : [];
+      if (alertas.length > 0) {
+        setCemadem({
+          muitoAlto: alertas.filter(a => a.nivel === 'Muito Alto').length,
+          alto: alertas.filter(a => a.nivel === 'Alto').length,
+          moderado: alertas.filter(a => a.nivel === 'Moderado').length,
+          geo: alertas.filter(a => (a.evento || '').startsWith('Mov')).length,
+          hidro: alertas.filter(a => /Enx|Ris|Hidro/i.test(a.evento)).length,
+          atualizado: json.atualizado || ''
+        });
+      } else {
+        setCemadem({ muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '' });
       }
     } catch {
-      setCemadem([{ message: 'Não foi possível carregar alertas do CEMADEM' }]);
+      setCemadem({ muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '', error: true });
     }
   }
 
@@ -317,17 +321,34 @@ export default function WeatherPage() {
         {error ? <div className="error">{error}</div> : null}
 
         {/* CEMADEM Alert Bar */}
-        {cemadem.length > 0 && cemadem[0].message !== 'Não foi possível carregar alertas do CEMADEM' ? (
-          <div className="cemadem-bar" style={{ maxWidth: 760, margin: '0 auto 16px', padding: '10px 14px', background: 'linear-gradient(90deg, rgba(239,68,68,.15), rgba(245,158,11,.12))', border: '1px solid rgba(239,68,68,.3)', borderRadius: 14, color: 'var(--text)', fontSize: 13, lineHeight: 1.5 }}>
-            <strong style={{ color: '#f87171', display: 'block', marginBottom: 4 }}>⚠️ Alertas CEMADEM</strong>
-            {cemadem.map((a, i) => (
-              <div key={i} style={{ marginBottom: 4 }}>
-                <span style={{ fontWeight: 600 }}>{a.mensagem}</span>
-                {a.cidade && <span style={{ opacity: 0.8 }}> — {a.cidade}{a.estado ? `/${a.estado}` : ''}</span>}
-              </div>
-            ))}
+        {/* CEMADEM Alert Stats */}
+        <div className="cemadem-stats">
+          <div className="cemadem-title">⚠️ Alertas CEMADEN</div>
+          <div className="cemadem-counts">
+            <div className={`cemade-card cemde-danger`}>
+              <div className="cemade-num">{cemadem?.muitoAlto ?? 0}</div>
+              <div className="cemade-label">Muito Alto</div>
+            </div>
+            <div className={`cemade-card cemde-warning`}>
+              <div className="cemade-num">{cemadem?.alto ?? 0}</div>
+              <div className="cemade-label">Alto</div>
+            </div>
+            <div className={`cemade-card cemde-moderado`}>
+              <div className="cemade-num">{cemadem?.moderado ?? 0}</div>
+              <div className="cemade-label">Moderado</div>
+            </div>
+            <div className={`cemade-card cemde-geo`}>
+              <div className="cemade-num">{cemadem?.geo ?? 0}</div>
+              <div className="cemade-label">Mov. Massa</div>
+            </div>
+            <div className={`cemade-card cemde-hidro`}>
+              <div className="cemade-num">{cemadem?.hidro ?? 0}</div>
+              <div className="cemade-label">Risco Hidro.</div>
+            </div>
           </div>
-        ) : null}
+          {cemadem?.error && <div style={{ color: '#fbbf24', fontSize: 12, marginTop: 8, textAlign: 'center' }}>Não foi possível carregar dados do CEMADEN</div>}
+          {cemadem?.atualizado && !cemadem.error && <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 6, textAlign: 'center' }}>Atualizado: {cemadem.atualizado}</div>}
+        </div>
       </section>
       {selectedWarning ? (
         <div className="warning-modal" role="dialog" aria-modal="true" onClick={() => setSelectedWarning(null)}>
