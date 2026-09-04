@@ -65,6 +65,7 @@ export default function WeatherPage() {
   const [clock, setClock] = useState('--:--:--');
   const [selectedWarning, setSelectedWarning] = useState(null);
   const [ticker, setTicker] = useState([]);
+  const [cemadem, setCemadem] = useState([]);
   const [searchCounts, setSearchCounts] = useState(() => {
     try { return JSON.parse(localStorage.getItem('clima-search-counts') || '{}'); } catch { return {}; }
   });
@@ -92,6 +93,7 @@ export default function WeatherPage() {
     loadWarnings();
     loadComparison();
     loadTicker();
+    loadCemadem();
   }, []);
 
   useEffect(() => {
@@ -131,6 +133,25 @@ export default function WeatherPage() {
       setTicker(items);
     } catch {
       setTicker([]);
+    }
+  }
+
+  async function loadCemadem() {
+    try {
+      const res = await fetch('https://alertas.inmet.gov.br/api/AlertaAtual/Ultimo');
+      if (!res.ok) throw new Error('network');
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setCemadem(data.slice(0, 5).map((x) => ({
+          message: x.Mensagem || x.mensagem || 'Alerta do CEMADEM',
+          cidade: x.Cidade || x.cidade || '',
+          estado: x.Estado || x.estado || '',
+          nivel: x.NivelAlerta || x.nivel || '',
+          data: x.DataInicio || x.data || ''
+        })));
+      }
+    } catch {
+      setCemadem([{ message: 'Não foi possível carregar alertas do CEMADEM' }]);
     }
   }
 
@@ -223,12 +244,12 @@ export default function WeatherPage() {
         {comparison.hot?.name || comparison.cold?.name ? (
           <div style={{ display: 'flex', gap: 12, margin: '10px 0 6px', flexWrap: 'wrap' }}>
             {comparison.hot?.name && (
-              <button className="chip" onClick={() => loadData(comparison.hot.name)}>
+              <button className="chip chip-hot" onClick={() => loadData(comparison.hot.name)}>
                 <Flame size={14} /> Mais quente: {comparison.hot.name} — {comparison.hot.temp.toFixed(1)} °C
               </button>
             )}
             {comparison.cold?.name && (
-              <button className="chip" onClick={() => loadData(comparison.cold.name)}>
+              <button className="chip chip-cold" onClick={() => loadData(comparison.cold.name)}>
                 <Snowflake size={14} /> Mais frio: {comparison.cold.name} — {comparison.cold.temp.toFixed(1)} °C
               </button>
             )}
@@ -294,6 +315,19 @@ export default function WeatherPage() {
           </div>
         </div>
         {error ? <div className="error">{error}</div> : null}
+
+        {/* CEMADEM Alert Bar */}
+        {cemadem.length > 0 && cemadem[0].message !== 'Não foi possível carregar alertas do CEMADEM' ? (
+          <div className="cemadem-bar" style={{ maxWidth: 760, margin: '0 auto 16px', padding: '10px 14px', background: 'linear-gradient(90deg, rgba(239,68,68,.15), rgba(245,158,11,.12))', border: '1px solid rgba(239,68,68,.3)', borderRadius: 14, color: 'var(--text)', fontSize: 13, lineHeight: 1.5 }}>
+            <strong style={{ color: '#f87171', display: 'block', marginBottom: 4 }}>⚠️ Alertas CEMADEM</strong>
+            {cemadem.map((a, i) => (
+              <div key={i} style={{ marginBottom: 4 }}>
+                <span style={{ fontWeight: 600 }}>{a.mensagem}</span>
+                {a.cidade && <span style={{ opacity: 0.8 }}> — {a.cidade}{a.estado ? `/${a.estado}` : ''}</span>}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
       {selectedWarning ? (
         <div className="warning-modal" role="dialog" aria-modal="true" onClick={() => setSelectedWarning(null)}>

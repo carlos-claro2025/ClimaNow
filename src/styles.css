@@ -226,6 +226,30 @@ button {
   background: linear-gradient(135deg, rgba(103, 232, 249, 0.18), rgba(167, 139, 250, 0.18));
 }
 
+.chip-hot {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(249, 115, 22, 0.15)) !important;
+  color: #fca5a5 !important;
+}
+
+.chip-hot:hover {
+  border-color: rgba(239, 68, 68, 0.7) !important;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.35), rgba(249, 115, 22, 0.25)) !important;
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.2) !important;
+}
+
+.chip-cold {
+  border-color: rgba(147, 197, 253, 0.4) !important;
+  background: linear-gradient(135deg, rgba(147, 197, 253, 0.15), rgba(191, 219, 254, 0.1)) !important;
+  color: #bfdbfe !important;
+}
+
+.chip-cold:hover {
+  border-color: rgba(147, 197, 253, 0.7) !important;
+  background: linear-gradient(135deg, rgba(147, 197, 253, 0.3), rgba(191, 219, 254, 0.2)) !important;
+  box-shadow: 0 10px 24px rgba(147, 197, 253, 0.15) !important;
+}
+
 .current {
   display: grid;
   grid-template-columns: 110px 1fr;
