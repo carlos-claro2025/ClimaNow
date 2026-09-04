@@ -129,7 +129,10 @@ export default function WeatherPage() {
       const items = Array.from(doc.querySelectorAll('item')).slice(0, 8).map((item) => {
         const title = item.querySelector('title')?.textContent?.trim() || 'Aviso meteorológico';
         const desc = item.querySelector('description')?.textContent?.trim() || '';
-        return [title, desc].filter(Boolean).join(' — ');
+        const link = item.querySelector('link')?.textContent?.trim() || '';
+        // Clean HTML from description
+        const cleanDesc = desc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        return { title, description: cleanDesc, link };
       });
       setTicker(items);
     } catch {
@@ -165,6 +168,10 @@ export default function WeatherPage() {
   }
 
   function handleOpenWarnings() {
+    if (ticker.length > 0) {
+      setSelectedWarning(ticker[0]);
+      return;
+    }
     if (warnings.length > 0) {
       setSelectedWarning(warnings[0]);
       return;
@@ -355,13 +362,21 @@ export default function WeatherPage() {
         <div className="warning-modal" role="dialog" aria-modal="true" onClick={() => setSelectedWarning(null)}>
           <div className="warning-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="header-row">
-              <strong>Detalhes do aviso</strong>
+              <strong>{selectedWarning.title || 'Detalhes do aviso'}</strong>
               <button className="chip" type="button" onClick={() => setSelectedWarning(null)}>Fechar</button>
             </div>
-            <p style={{ marginTop: 12 }}>{selectedWarning}</p>
-            <button className="chip" type="button" onClick={() => window.open('https://avisos.inmet.gov.br/', '_blank', 'noopener,noreferrer')}>
-              Abrir no INMET
-            </button>
+            {selectedWarning.description && (
+              <p style={{ marginTop: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedWarning.description}</p>
+            )}
+            {selectedWarning.link ? (
+              <button className="chip" type="button" onClick={() => window.open(selectedWarning.link, '_blank', 'noopener,noreferrer')}>
+                Abrir no INMET
+              </button>
+            ) : (
+              <button className="chip" type="button" onClick={() => window.open('https://avisos.inmet.gov.br/', '_blank', 'noopener,noreferrer')}>
+                Abrir no INMET
+              </button>
+            )}
           </div>
         </div>
       ) : null}
