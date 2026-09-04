@@ -251,7 +251,7 @@ export default function WeatherPage() {
         </button>
         {lastUpdate && (
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
-            Atualizado há {Math.floor((Date.now() - lastUpdate.getTime()) / 60000)} min
+            Última atualização: {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}
         <div className="header-row">
