@@ -66,6 +66,7 @@ export default function WeatherPage() {
   const [selectedWarning, setSelectedWarning] = useState(null);
   const [ticker, setTicker] = useState([]);
   const [cemadem, setCemadem] = useState([]);
+  const [lastUpdate, setLastUpdate] = useState(null);
   const [searchCounts, setSearchCounts] = useState(() => {
     try { return JSON.parse(localStorage.getItem('clima-search-counts') || '{}'); } catch { return {}; }
   });
@@ -95,6 +96,7 @@ export default function WeatherPage() {
     loadComparison();
     loadTicker();
     loadCemadem();
+    setLastUpdate(new Date());
   }, []);
 
   useEffect(() => {
@@ -164,7 +166,8 @@ export default function WeatherPage() {
   }
 
   async function handleRefreshWarnings() {
-    await loadWarnings();
+    await Promise.all([loadWarnings(), loadTicker(), loadCemadem()]);
+    setLastUpdate(new Date());
   }
 
   function handleOpenWarnings() {
@@ -243,9 +246,14 @@ export default function WeatherPage() {
       <Topbar theme={theme} onToggle={() => setTheme(theme === 'claro' ? 'escuro' : 'claro')} />
       <section className="card">
         <InmetBar warnings={warnings} ticker={ticker} onOpen={handleOpenWarnings} />
-        <button type="button" className="chip" onClick={handleRefreshWarnings} style={{ marginBottom: 12 }}>
-          <RefreshCw size={14} /> Atualizar avisos do INMET
+        <button type="button" className="chip" onClick={handleRefreshWarnings} style={{ marginBottom: 12 }} title="Atualizar dados">
+          <RefreshCw size={14} />
         </button>
+        {lastUpdate && (
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
+            Atualizado há {Math.floor((Date.now() - lastUpdate.getTime()) / 60000)} min
+          </div>
+        )}
         <div className="header-row">
           <div>
             <div className="eyebrow">Previsão do tempo</div>
