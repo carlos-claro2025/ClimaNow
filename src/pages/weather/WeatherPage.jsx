@@ -259,7 +259,7 @@ export default function WeatherPage() {
             <div className="eyebrow">Previsão do tempo</div>
             <h1 className="title">{weather?.place || 'Goiânia, Goiás — Brasil'}</h1>
           </div>
-          <Link className="link" to={`/chuva?tema=${themeToUrl(theme)}`}>Ver chuva agora</Link>
+          <a className="link" href="https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface&marker=location:-16.68,-49.26,10" target="_blank" rel="noopener noreferrer">Ver radar de chuva</a>
         </div>
         {comparison.hot?.name || comparison.cold?.name ? (
           <div style={{ display: 'flex', gap: 12, margin: '10px 0 6px', flexWrap: 'wrap' }}>
