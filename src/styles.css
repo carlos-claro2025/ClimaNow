@@ -156,6 +156,24 @@ button {
   opacity: 0.8;
 }
 
+.link-radar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(103, 232, 249, 0.1);
+  transition: all 0.15s ease;
+}
+
+.link-radar:hover {
+  border-color: rgba(103, 232, 249, 0.45);
+  background: rgba(103, 232, 249, 0.18);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(103, 232, 249, 0.15);
+}
+
 .search-row {
   display: flex;
   gap: 10px;
