@@ -514,37 +514,92 @@ button {
   padding: 18px 8px 14px;
   text-align: center;
   border-right: 1px solid var(--border);
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
 }
-.cemade-card:last-child {
-  border-right: none;
+.cemade-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  transition: opacity 0.2s;
 }
+.cemade-card:hover::before { opacity: 0.30; }
+.cemade-card:hover { transform: translateY(-2px); }
+.cemade-card:last-child { border-right: none; }
 .cemade-num {
   font-size: 32px;
   font-weight: 800;
   line-height: 1;
   margin-bottom: 6px;
   font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
 }
 .cemade-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
   line-height: 1.3;
+  position: relative;
+  z-index: 1;
 }
-.cemade-danger   { background: rgba(239,68,68,.13); }
-.cemade-danger .cemade-num { color: #f87171; }
-.cemade-warning  { background: rgba(245,158,11,.12); }
-.cemade-warning .cemade-num { color: #fbbf24; }
-.cemade-moderado { background: rgba(234,179,8,.10); }
-.cemade-moderado .cemade-num { color: #eab308; }
-.cemade-geo      { background: rgba(255,99,71,.10); }
-.cemade-geo .cemade-num     { color: #fb923c; }
-.cemade-hidro    { background: rgba(30,144,255,.10); }
-.cemade-hidro .cemade-num   { color: #60a5fa; }
 
-.cemadem-stats:hover .cemade-card { opacity: 0.85; }
-.cemadem-stats:hover .cemade-card:hover { opacity: 1; }
+/* Muito Alto — vermelho vibrante com glow */
+.cemade-danger {
+  background: linear-gradient(160deg, rgba(239,68,68,.25) 0%, rgba(127,29,29,.18) 100%);
+}
+.cemade-danger::before { background: radial-gradient(circle at 30% 30%, rgba(239,68,68,.4), transparent 70%); }
+.cemade-danger .cemade-num {
+  color: #ff4d4d;
+  text-shadow: 0 0 12px rgba(239,68,68,.6), 0 0 24px rgba(239,68,68,.3);
+}
+.cemade-danger .cemade-label { color: #fca5a5; }
+
+/* Alto — laranja intenso com gradiente quente */
+.cemade-warning {
+  background: linear-gradient(160deg, rgba(245,158,11,.24) 0%, rgba(180,83,9,.16) 100%);
+}
+.cemade-warning::before { background: radial-gradient(circle at 30% 30%, rgba(245,158,11,.4), transparent 70%); }
+.cemade-warning .cemade-num {
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(245,158,11,.5), 0 0 20px rgba(245,158,11,.25);
+}
+.cemade-warning .cemade-label { color: #fcd34d; }
+
+/* Moderado — amarelo-dourado */
+.cemade-moderado {
+  background: linear-gradient(160deg, rgba(234,179,8,.18) 0%, rgba(161,98,7,.12) 100%);
+}
+.cemade-moderado::before { background: radial-gradient(circle at 30% 30%, rgba(234,179,8,.35), transparent 70%); }
+.cemade-moderado .cemade-num {
+  color: #facc15;
+  text-shadow: 0 0 8px rgba(234,179,8,.4);
+}
+.cemade-moderado .cemade-label { color: #fde047; }
+
+/* Movimento de Massa — tomate/coral */
+.cemade-geo {
+  background: linear-gradient(160deg, rgba(255,99,71,.20) 0%, rgba(178,34,34,.12) 100%);
+}
+.cemade-geo::before { background: radial-gradient(circle at 30% 30%, rgba(255,99,71,.35), transparent 70%); }
+.cemade-geo .cemade-num {
+  color: #ff7f50;
+  text-shadow: 0 0 10px rgba(255,99,71,.45);
+}
+.cemade-geo .cemade-label { color: #ffb088; }
+
+/* Risco Hidrológico — azul-profundo com brilho */
+.cemade-hidro {
+  background: linear-gradient(160deg, rgba(30,144,255,.20) 0%, rgba(0,50,120,.14) 100%);
+}
+.cemade-hidro::before { background: radial-gradient(circle at 30% 30%, rgba(30,144,255,.38), transparent 70%); }
+.cemade-hidro .cemade-num {
+  color: #4da6ff;
+  text-shadow: 0 0 10px rgba(30,144,255,.5), 0 0 20px rgba(30,144,255,.2);
+}
+.cemade-hidro .cemade-label { color: #93c5fd; }
 
 @media (max-width: 640px) {
   .cemadem-counts {
