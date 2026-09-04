@@ -138,7 +138,7 @@ export default function WeatherPage() {
 
   async function loadCemadem() {
     try {
-      const res = await fetch('https://painelalertas.cemaden.gov.br/wsAlertas2');
+      const res = await fetch('/api/cemaden/wsAlertas2');
       if (!res.ok) throw new Error('network');
       const json = await res.json();
       const alertas = Array.isArray(json.alertas) ? json.alertas : [];
