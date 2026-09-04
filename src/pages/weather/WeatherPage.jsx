@@ -289,15 +289,15 @@ export default function WeatherPage() {
         <div className="metrics">
           <div className="metric">
             <div className="label">Vento</div>
-            <div className="value">{loading ? '-- km/h' : `${weather.wind.toFixed(1)} km/h`}</div>
+            <div className="value">{loading || !weather ? '-- km/h' : `${weather.wind.toFixed(1)} km/h`}</div>
           </div>
           <div className="metric">
             <div className="label">Umidade</div>
-            <div className="value">{loading ? '-- %' : `${Math.round(weather.humidity)} %`}</div>
+            <div className="value">{loading || !weather ? '-- %' : `${Math.round(weather.humidity)} %`}</div>
           </div>
           <div className="metric">
             <div className="label">Pressão</div>
-            <div className="value">{loading ? '-- hPa' : `${weather.pressure} hPa`}</div>
+            <div className="value">{loading || !weather ? '-- hPa' : `${weather.pressure} hPa`}</div>
           </div>
           <div className="metric">
             <div className="label">Relógio</div>
