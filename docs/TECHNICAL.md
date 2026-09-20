@@ -427,6 +427,10 @@ O `App.jsx` tem uma rota catch-all (`*` → `/`) como rede de segurança.
 > Assim `/chuva` existe como arquivo real em qualquer host estático, sem depender de
 > regra de rewrite. Ao **criar uma nova rota** em `App.jsx`, adicione-a ao array
 > `SPA_ROUTES` em `vite.config.js`.
+>
+> Links internos devem apontar para a forma **com barra final** (`/chuva/`): o host
+> redireciona `/chuva` → `/chuva/` com HTTP 308 e, nesse salto, a query string
+> (`?tema=`) é descartada.
 
 ---
 

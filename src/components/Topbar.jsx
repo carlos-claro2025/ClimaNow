@@ -12,7 +12,7 @@ export default function Topbar({ theme, onToggle, city }) {
         <span>ClimaNow</span>
       </Link>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Link className="chip" to={`/chuva?${new URLSearchParams({ tema: theme })}`}>
+        <Link className="chip" to={`/chuva/?${new URLSearchParams({ tema: theme })}`}>
           Monitor de Chuva
         </Link>
         <button type="button" className="theme-btn" onClick={onToggle} aria-label="Alternar tema">
