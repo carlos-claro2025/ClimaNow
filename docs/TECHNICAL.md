@@ -20,7 +20,8 @@ Documento técnico para recriação completa do projeto por desenvolvedores e de
 
 ### Infraestrutura
 - **Docker**: `Dockerfile` (node build → nginx serve) + `nginx.conf`
-- **Host estático**: alternativa sem proxy, usando `VITE_CEMADEN_BASE`
+- **Host estático**: o worker `cemaden-proxy` (Wasmer Edge) cobre o CEMADEN sem
+  proxy reverso; `VITE_CEMADEN_BASE` permite apontar para outro endpoint
 - **GitHub**: Controle de versão
 
 ## Estrutura de Diretórios
@@ -71,7 +72,7 @@ aqui. `WeatherPage` e `RainPage` **não duplicam** essa lógica.
 // Constantes
 MONITORED           // cidades da página /chuva
 POPULAR             // cidades sugeridas
-CEMADEN_BASE        // import.meta.env.VITE_CEMADEN_BASE || '/api/cemaden'
+CEMADEN_BASES        // [VITE_CEMADEN_BASE?, '/api/cemaden', proxy Wasmer Edge]
 EMPTY_CEMADEN       // objeto de contagens zeradas
 INMET_OFFLINE       // mensagem de fallback
 
@@ -297,8 +298,11 @@ GET https://apiprevmet3.inmet.gov.br/avisos/rss
 
 ### CEMADEN API
 ```javascript
-// Via proxy (dev: vite.config.js | prod: nginx.conf)
-GET /api/cemaden/wsAlertas2
+// Cadeia de fallback (CEMADEN_BASES em src/lib/clima.jsx):
+//   1. VITE_CEMADEN_BASE, se definido no build
+//   2. /api/cemaden          (dev: vite.config.js | prod: nginx.conf)
+//   3. https://cemaden-proxy.wasmer.app   (worker Edge.js — host estático)
+GET <base>/wsAlertas2
 // Resposta: { alertas: [...], atualizado: "DD-MM-AAAA HH:MM:SS UTC" }
 
 // Classificação das contagens:
@@ -410,15 +414,48 @@ O container usa `nginx.conf`, que:
 - serve `/assets/` com cache imutável
 - faz fallback de SPA (`try_files $uri $uri/ /index.html`) para `/chuva` funcionar em refresh direto
 
+### Proxy CEMADEN (Wasmer Edge)
+`painelalertas.cemaden.gov.br` responde 200 com JSON válido, mas **não envia
+`Access-Control-Allow-Origin`** — nem no GET, nem no preflight. Em host estático
+não há como contornar isso pelo frontend, então existe um worker Edge.js
+separado que reexpõe os mesmos caminhos com CORS liberado:
+`https://cemaden-proxy.wasmer.app` (app `carlosklaro/cemaden-proxy`).
+
+> O código-fonte do worker fica em uma **pasta irmã deste repositório**
+> (`../cemaden-proxy`), não versionada aqui, porque é um app Wasmer independente
+> com ciclo de deploy próprio. O frontend só depende da URL acima.
+
+```bash
+# Deploy (a cada mudança, suba a `version` em wasmer.toml antes)
+cd ../cemaden-proxy
+wasmer deploy --dir . --owner carlosklaro --app-name cemaden-proxy \
+  --non-interactive --publish-package
+```
+
+| Endpoint | Função |
+|---|---|
+| `GET /` , `GET /health` | metadados do serviço (usados pelo health check do deploy) |
+| `GET /wsAlertas` , `GET /wsAlertas2` | passthrough para o CEMADEN, com `access-control-allow-origin: *` |
+| `OPTIONS *` | preflight (200 + cabeçalhos CORS) |
+
+Detalhes que custaram deploy: o entrypoint **precisa** se chamar `_worker.js`
+(exigência do modo Cloudflare do WinterJS); `new Response(null, ...)` lança
+exceção no WinterJS, então o preflight devolve corpo JSON; e `app.yaml` deve usar
+`package: .` para referenciar o `wasmer.toml` local.
+
 ### Host estático (Netlify, Vercel, GitHub Pages, S3, Wasmer)
 ```bash
 npm run build   # gera dist/
 ```
-Sem nginx **não há proxy de CEMADEN**. Nesse caso defina o endpoint antes do build:
+Sem nginx **não há proxy de CEMADEN**. A cadeia de fallback cobre isso com o
+worker `cemaden-proxy` (pasta `../cemaden-proxy`), já embutido no código; para
+usar outro endpoint, defina antes do build:
 ```bash
 # .env
-VITE_CEMADEN_BASE=https://<host-com-CORS>/wsAlertas2
+VITE_CEMADEN_BASE=https://<host-com-CORS>
 ```
+Note que **não** se acrescenta `/wsAlertas2`: `fetchCemaden()` já concatena o
+caminho. Um sufixo extra gera `/wsAlertas2/wsAlertas2` e o CEMADEN fica em `0`.
 E configure o fallback de SPA no host (senão `/chuva` em refresh direto dá 404).
 O `App.jsx` tem uma rota catch-all (`*` → `/`) como rede de segurança.
 

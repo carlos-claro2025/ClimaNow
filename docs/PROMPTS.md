@@ -35,7 +35,7 @@ Crie um site de previsão do tempo completo chamado "ClimaNow" usando React 19 +
    - clima.jsx: fetchJson, geocode, forecastUrl, formatValue (null-safe),
      iconFor/labelFor (NEVE testada ANTES de chuva), cleanText, normalizeWarning,
      parseRss, fetchInmetWarnings, fetchRss, fetchCemaden, isRaining,
-     CEMADEN_BASE = import.meta.env.VITE_CEMADEN_BASE || '/api/cemaden'
+     CEMADEN_BASES = [VITE_CEMADEN_BASE?, '/api/cemaden', proxy Wasmer Edge]
    - useTheme.js: prioridade ?tema= > localStorage > 'escuro'; aplica data-theme no <html>
 
 5. CONFIGURAÇÕES:
@@ -49,12 +49,14 @@ Crie um site de previsão do tempo completo chamado "ClimaNow" usando React 19 +
 6. INTEGRAÇÕES DE API:
    - Open-Meteo: https://api.open-meteo.com/v1/forecast
    - INMET: https://apiprevmet3.inmet.gov.br/avisos/{ativos,rss}
-   - CEMADEN: via proxy /api/cemaden/wsAlertas2 (dev: Vite; prod: nginx)
+   - CEMADEN: via <base>/wsAlertas2 (VITE_CEMADEN_BASE → dev: Vite → prod: nginx
+     → host estático: worker Edge.js em ../cemaden-proxy)
 
 7. DEPLOY:
    - Dockerfile (node:20-alpine → nginx:alpine)
    - nginx.conf: proxy /api/cemaden/, cache de /assets/, fallback SPA try_files
-   - Alternativa em host estático: VITE_CEMADEN_BASE + fallback de SPA do host
+   - Alternativa em host estático: worker cemaden-proxy (Wasmer Edge) ou
+     VITE_CEMADEN_BASE apontando para endpoint próprio com CORS (sem sufixo)
    - Host estático sem regra de rewrite: plugin spa-deep-links em vite.config.js
      copia dist/index.html para dist/<rota>/index.html (ex.: dist/chuva/index.html)
      para que /chuva funcione em refresh direto

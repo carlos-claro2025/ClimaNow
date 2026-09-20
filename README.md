@@ -137,8 +137,8 @@ server: {
 - **Feed RSS**: `https://apiprevmet3.inmet.gov.br/avisos/rss`
 
 #### CEMADEN (Alertas de risco)
-- **Alertas**: `/api/cemaden/wsAlertas2` (proxy: Vite em dev, nginx em produção)
-- Base configurável via `VITE_CEMADEN_BASE`
+- **Alertas**: `<base>/wsAlertas2` (cadeia: `VITE_CEMADEN_BASE` → `/api/cemaden` → worker Wasmer Edge)
+- Base configurável via `VITE_CEMADEN_BASE` (sem sufixo `/wsAlertas2`)
 - Resposta JSON com array `alertas` contendo: `nivel`, `evento`, `municipio`, `uf`, `datahoracriacao`
 
 ## 🎨 Design System
@@ -196,9 +196,10 @@ docker run -p 8080:80 climanow
 ### Deploy estático (Netlify / Vercel / Cloudflare Pages)
 - Build: `npm run build` · Publish dir: `dist`
 - Configure o rewrite de SPA (`/*` → `/index.html`).
-- O CEMADEN precisa de proxy reverso. Se a plataforma não permitir, defina
-  `VITE_CEMADEN_BASE` no build apontando para um endpoint próprio com CORS.
-  Sem isso os cards do CEMADEN ficam em `0`.
+- O CEMADEN precisa de proxy reverso. Em host estático a cadeia de fallback já
+  cai no worker `cemaden-proxy` (`https://cemaden-proxy.wasmer.app`); para usar
+  outro endpoint, defina `VITE_CEMADEN_BASE` no build. Sem isso os cards do
+  CEMADEN ficam em `0`.
 
 ## 📱 Responsividade
 

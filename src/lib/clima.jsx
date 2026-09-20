@@ -27,9 +27,15 @@ export const isRaining = (code) => RAIN_CODES.has(code);
 
 export const INMET_OFFLINE = { title: 'Sem conexão com o INMET', description: '', link: '' };
 
-// Deployments without the Vite dev proxy must set VITE_CEMADEN_BASE to a
-// reverse-proxied path or a CORS-enabled endpoint.
-export const CEMADEN_BASE = import.meta.env.VITE_CEMADEN_BASE || '/api/cemaden';
+// CEMADEN sends no CORS headers, so the browser can only reach it through a
+// proxy. The Vite dev server and nginx.conf serve `/api/cemaden`; the Wasmer
+// Edge worker covers hosts that cannot run a server-side proxy. The first base
+// that answers wins, and VITE_CEMADEN_BASE overrides the list entirely.
+export const CEMADEN_BASES = [
+  import.meta.env.VITE_CEMADEN_BASE,
+  '/api/cemaden',
+  'https://cemaden-proxy.wasmer.app',
+].filter(Boolean);
 
 export const EMPTY_CEMADEN = { muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '' };
 
@@ -138,7 +144,17 @@ export async function fetchRss(signal) {
 }
 
 export async function fetchCemaden(signal) {
-  const json = await fetchJson(`${CEMADEN_BASE}/wsAlertas2`, signal);
+  let json = null;
+  for (const base of CEMADEN_BASES) {
+    try {
+      json = await fetchJson(`${base}/wsAlertas2`, signal);
+      break;
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+    }
+  }
+  if (!json) throw new Error('network');
+
   const alertas = Array.isArray(json.alertas) ? json.alertas : [];
   return {
     muitoAlto: alertas.filter((a) => a.nivel === 'Muito Alto').length,
