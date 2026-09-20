@@ -50,7 +50,7 @@ Crie um site de previsão do tempo completo chamado "ClimaNow" usando React 19 +
    - Open-Meteo: https://api.open-meteo.com/v1/forecast
    - INMET: https://apiprevmet3.inmet.gov.br/avisos/{ativos,rss}
    - CEMADEN: via <base>/wsAlertas2 (VITE_CEMADEN_BASE → dev: Vite → prod: nginx
-     → host estático: worker Edge.js em ../cemaden-proxy)
+     → host estático: worker Edge.js em cemaden-proxy/)
 
 7. DEPLOY:
    - Dockerfile (node:20-alpine → nginx:alpine)

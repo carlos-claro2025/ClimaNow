@@ -1,0 +1,19 @@
+[package]
+name = "carlosklaro/cemaden-cors-proxy"
+version = "0.4.1"
+description = "CORS proxy for the CEMADEN public alerts API (painelalertas.cemaden.gov.br)"
+readme = "README.md"
+
+[dependencies]
+"wasmer/winterjs" = "^0.3.4"
+
+[fs]
+"/src" = "./src"
+
+[[command]]
+name = "script"
+module = "wasmer/winterjs:winterjs"
+runner = "wasi"
+
+[command.annotations.wasi]
+main-args = ["--mode", "cloudflare", "/src"]

@@ -107,9 +107,13 @@ climanow/
 ├── vite.config.js              # Configuração do Vite + proxy CORS
 ├── nginx.conf                  # SPA fallback + proxy CEMADEN (produção)
 ├── Dockerfile                  # Build + nginx
+├── cemaden-proxy/              # App Wasmer Edge separado (proxy CORS do CEMADEN)
 ├── package.json
 └── README.md
 ```
+
+> `cemaden-proxy/` é um app Wasmer independente, versionado aqui apenas para
+> guardar o fonte. O build do Vite o ignora (publica só `dist/`).
 
 ### Configuração do Proxy CORS
 O Vite é configurado para burlar CORS da API CEMADEN:
@@ -197,9 +201,9 @@ docker run -p 8080:80 climanow
 - Build: `npm run build` · Publish dir: `dist`
 - Configure o rewrite de SPA (`/*` → `/index.html`).
 - O CEMADEN precisa de proxy reverso. Em host estático a cadeia de fallback já
-  cai no worker `cemaden-proxy` (`https://cemaden-proxy.wasmer.app`); para usar
-  outro endpoint, defina `VITE_CEMADEN_BASE` no build. Sem isso os cards do
-  CEMADEN ficam em `0`.
+  cai no worker `cemaden-proxy` (`https://cemaden-proxy.wasmer.app`, fonte em
+  `cemaden-proxy/`); para usar outro endpoint, defina `VITE_CEMADEN_BASE` no
+  build. Sem isso os cards do CEMADEN ficam em `0`.
 
 ## 📱 Responsividade
 

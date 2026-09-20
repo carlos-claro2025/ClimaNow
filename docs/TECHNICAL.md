@@ -421,13 +421,13 @@ não há como contornar isso pelo frontend, então existe um worker Edge.js
 separado que reexpõe os mesmos caminhos com CORS liberado:
 `https://cemaden-proxy.wasmer.app` (app `carlosklaro/cemaden-proxy`).
 
-> O código-fonte do worker fica em uma **pasta irmã deste repositório**
-> (`../cemaden-proxy`), não versionada aqui, porque é um app Wasmer independente
-> com ciclo de deploy próprio. O frontend só depende da URL acima.
+O código-fonte fica em `cemaden-proxy/` neste repositório. É um **app Wasmer
+independente**, com ciclo de deploy próprio — o build do Vite o ignora (só
+`dist/` é publicado) e o `.dockerignore` o exclui do contexto do Docker.
 
 ```bash
 # Deploy (a cada mudança, suba a `version` em wasmer.toml antes)
-cd ../cemaden-proxy
+cd cemaden-proxy
 wasmer deploy --dir . --owner carlosklaro --app-name cemaden-proxy \
   --non-interactive --publish-package
 ```
