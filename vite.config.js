@@ -3,7 +3,10 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // Absolute base: BrowserRouter needs /assets/... at every route depth.
+  // With './' a deep link such as /chuva served index.html where the JS bundle
+  // was expected, so the app rendered a blank page.
+  base: '/',
   server: {
     proxy: {
       '/api/cemaden': {
@@ -12,9 +15,6 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/cemaden/, ''),
       },
     },
-  },
-  build: {
-    outDir: 'dist',
   },
   build: {
     outDir: 'dist',

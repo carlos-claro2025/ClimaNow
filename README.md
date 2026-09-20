@@ -49,17 +49,28 @@ Aplicação web moderna para monitoramento meteorológico com integração de m�
 - Botão "Mais quente" (cor laranja/fogo)
 - Botão "Mais frio" (cor gelo/azul)
 - Clique para navegar à cidade selecionada
-- Atualiza automaticamente a cada carregamento
+- Calculada entre as 10 cidades monitoradas, uma vez por carregamento
+- Só é recalculada ao recarregar a página (não a cada troca de cidade)
 
 ### 8. Sistema de Temas
 - Toggle claro/escuro no topo
-- Persistência via localStorage
+- Persistência via localStorage (`clima-theme`)
+- Preferência restaurada ao recarregar; `?tema=` na URL tem prioridade
+- `?tema=` é gravado na URL apenas quando o usuário usa o toggle
 - Variáveis CSS para ambos os temas
 - Transições suaves
 
-### 9. Atualização Manual
+### 9. Troca de Cidade
+- A cidade ativa vive na URL (`?cidade=`), não em estado duplicado
+- `selectCity` é o único ponto que grava `?cidade=`, então a URL nunca
+  disputa com o `?tema=` nem alterna entre cidades
+- Requisição anterior é abortada: resposta atrasada não sobrescreve a nova
+- Os valores numéricos só exibem `--` na primeira carga, para a temperatura não
+  piscar durante a troca
+
+### 10. Atualização Manual
 - Botão ↻ para refrescar todos os dados
-- Status "Última atualização: XX:XX"
+- Status "Última atualização: DD/MM/AAAA HH:MM"
 - Atualiza: INMET, CEMADEN, ticker, previsão
 
 ## 🏗️ Arquitetura Técnica
@@ -79,7 +90,11 @@ climanow/
 ├── src/
 │   ├── components/
 │   │   ├── Topbar.jsx          # Barra superior com theme toggle
-│   │   └── InmetBar.jsx        # Barra de avisos INMET
+│   │   ├── InmetBar.jsx        # Barra de avisos INMET
+│   │   └── ErrorBoundary.jsx   # Fallback para erros de renderização
+│   ├── lib/
+│   │   ├── clima.jsx           # Helpers compartilhados (API, ícones, avisos)
+│   │   └── useTheme.js         # Hook de tema (data-theme + localStorage + URL)
 │   ├── pages/
 │   │   ├── weather/
 │   │   │   └── WeatherPage.jsx # Página principal
@@ -88,9 +103,10 @@ climanow/
 │   ├── styles.css              # Estilos globais
 │   ├── App.jsx                 # Roteamento
 │   └── main.jsx                # Entry point
-├── public/
-│   └── index.html              # Template HTML
+├── index.html                  # Template HTML (Vite, com meta tags de SEO)
 ├── vite.config.js              # Configuração do Vite + proxy CORS
+├── nginx.conf                  # SPA fallback + proxy CEMADEN (produção)
+├── Dockerfile                  # Build + nginx
 ├── package.json
 └── README.md
 ```
@@ -121,7 +137,8 @@ server: {
 - **Feed RSS**: `https://apiprevmet3.inmet.gov.br/avisos/rss`
 
 #### CEMADEN (Alertas de risco)
-- **Alertas**: `/api/cemaden/wsAlertas2` (proxy local)
+- **Alertas**: `/api/cemaden/wsAlertas2` (proxy: Vite em dev, nginx em produção)
+- Base configurável via `VITE_CEMADEN_BASE`
 - Resposta JSON com array `alertas` contendo: `nivel`, `evento`, `municipio`, `uf`, `datahoracriacao`
 
 ## 🎨 Design System
@@ -170,23 +187,18 @@ npm run build
 ```
 
 ### Deploy com Docker
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+O `Dockerfile` na raiz já usa o `nginx.conf` (fallback de SPA + proxy CEMADEN):
+```bash
+docker build -t climanow .
+docker run -p 8080:80 climanow
 ```
 
-### WASMER Deployment
-Arquivo `Dockerfile.wasmer` configurado para deploy em nuvem.
+### Deploy estático (Netlify / Vercel / Cloudflare Pages)
+- Build: `npm run build` · Publish dir: `dist`
+- Configure o rewrite de SPA (`/*` → `/index.html`).
+- O CEMADEN precisa de proxy reverso. Se a plataforma não permitir, defina
+  `VITE_CEMADEN_BASE` no build apontando para um endpoint próprio com CORS.
+  Sem isso os cards do CEMADEN ficam em `0`.
 
 ## 📱 Responsividade
 
