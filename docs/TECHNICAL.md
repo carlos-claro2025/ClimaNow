@@ -422,6 +422,12 @@ VITE_CEMADEN_BASE=https://<host-com-CORS>/wsAlertas2
 E configure o fallback de SPA no host (senão `/chuva` em refresh direto dá 404).
 O `App.jsx` tem uma rota catch-all (`*` → `/`) como rede de segurança.
 
+> O build **já resolve isso sozinho**: o plugin `spa-deep-links` em `vite.config.js`
+> copia `dist/index.html` para `dist/<rota>/index.html` (hoje `dist/chuva/index.html`).
+> Assim `/chuva` existe como arquivo real em qualquer host estático, sem depender de
+> regra de rewrite. Ao **criar uma nova rota** em `App.jsx`, adicione-a ao array
+> `SPA_ROUTES` em `vite.config.js`.
+
 ---
 
 **Nota**: Este documento fornece todas as informações técnicas necessárias para recriar o projeto do zero.

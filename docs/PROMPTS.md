@@ -55,6 +55,9 @@ Crie um site de previsão do tempo completo chamado "ClimaNow" usando React 19 +
    - Dockerfile (node:20-alpine → nginx:alpine)
    - nginx.conf: proxy /api/cemaden/, cache de /assets/, fallback SPA try_files
    - Alternativa em host estático: VITE_CEMADEN_BASE + fallback de SPA do host
+   - Host estático sem regra de rewrite: plugin spa-deep-links em vite.config.js
+     copia dist/index.html para dist/<rota>/index.html (ex.: dist/chuva/index.html)
+     para que /chuva funcione em refresh direto
 
 Gere todos os arquivos completos e funcionais.
 ```
