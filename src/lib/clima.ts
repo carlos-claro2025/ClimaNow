@@ -4,6 +4,9 @@ export const POPULAR = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Bras�
 export interface Coordinates {
   latitude: number;
   longitude: number;
+  name?: string;
+  admin1?: string;
+  country?: string;
 }
 
 export interface Warning {
@@ -25,16 +28,16 @@ export interface CemadenData {
 // 10 geocoding requests on every mount. The TTL cache below covers everything
 // else, so a city searched once is never re-fetched within the window.
 const KNOWN_COORDS: Record<string, Coordinates> = {
-  'Goiânia': { latitude: -16.6869, longitude: -49.2648 },
-  'São Paulo': { latitude: -23.5505, longitude: -46.6333 },
-  'Rio de Janeiro': { latitude: -22.9068, longitude: -43.1729 },
-  'Belo Horizonte': { latitude: -19.9167, longitude: -43.9333 },
-  'Curitiba': { latitude: -25.4284, longitude: -49.2733 },
-  'Porto Alegre': { latitude: -30.0346, longitude: -51.2177 },
-  'Brasília': { latitude: -15.7942, longitude: -47.8822 },
-  'Salvador': { latitude: -12.9714, longitude: -38.5014 },
-  'Fortaleza': { latitude: -3.7312, longitude: -38.5267 },
-  'Recife': { latitude: -8.0476, longitude: -34.8770 },
+  'Goiânia': { latitude: -16.6869, longitude: -49.2648, name: 'Goiânia', admin1: 'Goiás', country: 'Brasil' },
+  'São Paulo': { latitude: -23.5505, longitude: -46.6333, name: 'São Paulo', admin1: 'São Paulo', country: 'Brasil' },
+  'Rio de Janeiro': { latitude: -22.9068, longitude: -43.1729, name: 'Rio de Janeiro', admin1: 'Rio de Janeiro', country: 'Brasil' },
+  'Belo Horizonte': { latitude: -19.9167, longitude: -43.9333, name: 'Belo Horizonte', admin1: 'Minas Gerais', country: 'Brasil' },
+  'Curitiba': { latitude: -25.4284, longitude: -49.2733, name: 'Curitiba', admin1: 'Paraná', country: 'Brasil' },
+  'Porto Alegre': { latitude: -30.0346, longitude: -51.2177, name: 'Porto Alegre', admin1: 'Rio Grande do Sul', country: 'Brasil' },
+  'Brasília': { latitude: -15.7942, longitude: -47.8822, name: 'Brasília', admin1: 'Distrito Federal', country: 'Brasil' },
+  'Salvador': { latitude: -12.9714, longitude: -38.5014, name: 'Salvador', admin1: 'Bahia', country: 'Brasil' },
+  'Fortaleza': { latitude: -3.7312, longitude: -38.5267, name: 'Fortaleza', admin1: 'Ceará', country: 'Brasil' },
+  'Recife': { latitude: -8.0476, longitude: -34.8770, name: 'Recife', admin1: 'Pernambuco', country: 'Brasil' },
 };
 
 const GEOCODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
