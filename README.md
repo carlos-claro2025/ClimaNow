@@ -79,7 +79,7 @@ Aplicação web moderna para monitoramento meteorológico com integração de m�
 - **React 19** com Vite 8
 - **Lucide React** para ícones
 - **React Router DOM** para navegação
-- **CSS Modules** com variáveis CSS customizadas
+- **CSS global** com variáveis CSS customizadas
 - **Open-Meteo API** para dados meteorológicos
 - **INMET API** para avisos meteorológicos
 - **CEMADEN API** para alertas de risco
