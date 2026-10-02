@@ -3,19 +3,16 @@ import { CloudRain, RefreshCw, Search } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Topbar from '../../components/Topbar';
 import InmetBar from '../../components/InmetBar';
+import WarningModal from '../../components/WarningModal';
 import {
-  INMET_OFFLINE,
   MONITORED,
-  fetchInmetWarnings,
   fetchJson,
-  fetchRss,
   forecastUrl,
   formatValue,
   geocode,
   isRaining,
-  normalizeWarning,
-  safeExternalUrl,
 } from '../../lib/clima';
+import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
 
 export default function RainPage() {
@@ -26,30 +23,11 @@ export default function RainPage() {
   const city = params.get('cidade') || '';
   const backParams = new URLSearchParams({ tema: theme });
   if (city) backParams.set('cidade', city);
-  const [warnings, setWarnings] = useState([]);
+  const { warnings, ticker, selectedWarning, setSelectedWarning, refresh: refreshInmet, openWarning } =
+    useInmetAlerts();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState('Atualizando...');
-  const [selectedWarning, setSelectedWarning] = useState(null);
-  const [ticker, setTicker] = useState([]);
-
-  const loadWarnings = useCallback(async (signal) => {
-    try {
-      const list = await fetchInmetWarnings(signal);
-      if (!signal?.aborted) setWarnings(list);
-    } catch {
-      if (!signal?.aborted) setWarnings([INMET_OFFLINE]);
-    }
-  }, []);
-
-  const loadTicker = useCallback(async (signal) => {
-    try {
-      const list = await fetchRss(signal);
-      if (!signal?.aborted) setTicker(list);
-    } catch {
-      if (!signal?.aborted) setTicker([]);
-    }
-  }, []);
 
   const refresh = useCallback(async (signal) => {
     try {
@@ -92,42 +70,25 @@ export default function RainPage() {
     const { signal } = controller;
     // Detached so the effect body itself stays synchronous.
     (async () => {
-      await Promise.all([loadWarnings(signal), loadTicker(signal), refresh(signal)]);
+      await refresh(signal);
     })();
     return () => controller.abort();
-  }, [loadWarnings, loadTicker, refresh]);
-
-  const handleRefreshWarnings = useCallback(() => {
-    loadWarnings();
-    loadTicker();
-  }, [loadWarnings, loadTicker]);
+  }, [refresh]);
 
   const handleRefreshList = useCallback(() => {
     setLoading(true);
     refresh();
   }, [refresh]);
 
-  function handleOpenWarnings() {
-    if (ticker.length > 0) {
-      setSelectedWarning(normalizeWarning(ticker[0]));
-      return;
-    }
-    if (warnings.length > 0) {
-      setSelectedWarning(normalizeWarning(warnings[0]));
-      return;
-    }
-    window.open('https://avisos.inmet.gov.br/', '_blank', 'noopener,noreferrer');
-  }
-
   return (
     <main className="app-shell">
       <Topbar theme={theme} onToggle={toggle} city={city} />
       <section className="card">
-        <InmetBar warnings={warnings} ticker={ticker} onOpen={handleOpenWarnings} />
+        <InmetBar warnings={warnings} ticker={ticker} onOpen={openWarning} />
         <button
           type="button"
           className="chip"
-          onClick={handleRefreshWarnings}
+          onClick={refreshInmet}
           style={{ marginBottom: 12 }}
           title="Atualizar avisos do INMET"
           aria-label="Atualizar avisos do INMET"
@@ -161,28 +122,7 @@ export default function RainPage() {
           ))}
         </div>
       </section>
-      {selectedWarning ? (
-        <div className="warning-modal" role="dialog" aria-modal="true" onClick={() => setSelectedWarning(null)}>
-          <div className="warning-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="header-row">
-              <strong>{selectedWarning.title || 'Detalhes do aviso'}</strong>
-              <button className="chip" type="button" onClick={() => setSelectedWarning(null)}>
-                Fechar
-              </button>
-            </div>
-            {selectedWarning.description && (
-              <p style={{ marginTop: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedWarning.description}</p>
-            )}
-            <button
-              className="chip"
-              type="button"
-              onClick={() => window.open(safeExternalUrl(selectedWarning.link), '_blank', 'noopener,noreferrer')}
-            >
-              Abrir no INMET
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <WarningModal warning={selectedWarning} onClose={() => setSelectedWarning(null)} />
     </main>
   );
 }

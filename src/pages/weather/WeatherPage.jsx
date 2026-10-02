@@ -4,24 +4,21 @@ import { useSearchParams } from 'react-router-dom';
 import Clock from '../../components/Clock';
 import Topbar from '../../components/Topbar';
 import InmetBar from '../../components/InmetBar';
+import WarningModal from '../../components/WarningModal';
 import {
   EMPTY_CEMADEN,
-  INMET_OFFLINE,
   MONITORED,
   POPULAR,
   fetchCemaden,
-  fetchInmetWarnings,
   fetchJson,
-  fetchRss,
   forecastUrl,
   formatDate,
   formatValue,
   geocode,
   iconFor,
   labelFor,
-  normalizeWarning,
-  safeExternalUrl,
 } from '../../lib/clima';
+import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
 
 const EMPTY_PLACE = { name: null, temp: null };
@@ -40,15 +37,14 @@ export default function WeatherPage() {
   // both sides write the other, so the page thrashed between two cities.
   const city = params.get('cidade') || DEFAULT_CITY;
   const [input, setInput] = useState(city);
-  const [warnings, setWarnings] = useState([]);
+  const { warnings, ticker, selectedWarning, setSelectedWarning, refresh: refreshInmet, openWarning } =
+    useInmetAlerts();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [weather, setWeather] = useState(null);
   const [forecast, setForecast] = useState([]);
   const [popular, setPopular] = useState(POPULAR);
   const [comparison, setComparison] = useState({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
-  const [selectedWarning, setSelectedWarning] = useState(null);
-  const [ticker, setTicker] = useState([]);
   const [cemadem, setCemadem] = useState(EMPTY_CEMADEN);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -123,15 +119,9 @@ export default function WeatherPage() {
     [],
   );
 
-  const refreshAlerts = useCallback(async (signal) => {
-    const [warningsResult, tickerResult, cemademResult] = await Promise.allSettled([
-      fetchInmetWarnings(signal),
-      fetchRss(signal),
-      fetchCemaden(signal),
-    ]);
+  const refreshCemaden = useCallback(async (signal) => {
+    const [cemademResult] = await Promise.allSettled([fetchCemaden(signal)]);
     if (signal?.aborted) return;
-    setWarnings(warningsResult.status === 'fulfilled' ? warningsResult.value : [INMET_OFFLINE]);
-    setTicker(tickerResult.status === 'fulfilled' ? tickerResult.value : []);
     setCemadem(cemademResult.status === 'fulfilled' ? cemademResult.value : { ...EMPTY_CEMADEN, error: true });
   }, []);
 
@@ -160,11 +150,11 @@ export default function WeatherPage() {
     const controller = new AbortController();
     const { signal } = controller;
     (async () => {
-      await refreshAlerts(signal);
+      await refreshCemaden(signal);
       await loadComparison(signal);
     })();
     return () => controller.abort();
-  }, [refreshAlerts, loadComparison]);
+  }, [refreshCemaden, loadComparison]);
 
   // One load per city. Aborting the previous request means a slow reply for the
   // old city can never land on top of the new one.
@@ -196,22 +186,10 @@ export default function WeatherPage() {
     [setParams],
   );
 
-  const handleRefreshWarnings = useCallback(async () => {
+  const handleRefresh = useCallback(async () => {
     setReloadToken((n) => n + 1);
-    await refreshAlerts();
-  }, [refreshAlerts]);
-
-  function handleOpenWarnings() {
-    if (ticker.length > 0) {
-      setSelectedWarning(normalizeWarning(ticker[0]));
-      return;
-    }
-    if (warnings.length > 0) {
-      setSelectedWarning(normalizeWarning(warnings[0]));
-      return;
-    }
-    window.open('https://avisos.inmet.gov.br/', '_blank', 'noopener,noreferrer');
-  }
+    refreshInmet();
+  }, [refreshInmet]);
 
   const status = useMemo(() => (weather ? labelFor(weather.code) : ''), [weather]);
   // Only blank the readings on the very first load. Blanking them on every
@@ -232,11 +210,11 @@ export default function WeatherPage() {
     <main className="app-shell">
       <Topbar theme={theme} onToggle={toggle} city={city} />
       <section className="card">
-        <InmetBar warnings={warnings} ticker={ticker} onOpen={handleOpenWarnings} />
+        <InmetBar warnings={warnings} ticker={ticker} onOpen={openWarning} />
         <button
           type="button"
           className="chip"
-          onClick={handleRefreshWarnings}
+          onClick={handleRefresh}
           style={{ marginBottom: 12 }}
           title="Atualizar dados"
           aria-label="Atualizar dados"
@@ -380,28 +358,7 @@ export default function WeatherPage() {
           )}
         </div>
       </section>
-      {selectedWarning ? (
-        <div className="warning-modal" role="dialog" aria-modal="true" onClick={() => setSelectedWarning(null)}>
-          <div className="warning-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="header-row">
-              <strong>{selectedWarning.title || 'Detalhes do aviso'}</strong>
-              <button className="chip" type="button" onClick={() => setSelectedWarning(null)}>
-                Fechar
-              </button>
-            </div>
-            {selectedWarning.description && (
-              <p style={{ marginTop: 12, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedWarning.description}</p>
-            )}
-            <button
-              className="chip"
-              type="button"
-              onClick={() => window.open(safeExternalUrl(selectedWarning.link), '_blank', 'noopener,noreferrer')}
-            >
-              Abrir no INMET
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <WarningModal warning={selectedWarning} onClose={() => setSelectedWarning(null)} />
     </main>
   );
 }
