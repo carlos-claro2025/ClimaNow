@@ -18,6 +18,9 @@ import { useTheme } from '../../lib/useTheme';
 interface RainItem {
   name: string;
   temp: number;
+  precipitation: number;
+  cloudCover: number;
+  confidence: 'alta' | 'média' | 'baixa';
 }
 
 export default function RainPage() {
@@ -45,8 +48,53 @@ export default function RainPage() {
           try {
             const g = await geocode(name, signal);
             if (!g) return null;
-            const f = await fetchJson<{ current?: { weather_code?: number; temperature_2m?: number } }>(forecastUrl(g.latitude, g.longitude, 'current=weather_code,temperature_2m'), signal);
-            return isRaining(f.current?.weather_code ?? 0) ? { name, temp: f.current!.temperature_2m! } : null;
+            const f = await fetchJson<{
+              current?: {
+                weather_code?: number;
+                temperature_2m?: number;
+                precipitation_1h?: number;
+                cloud_cover?: number;
+              };
+            }>(
+              forecastUrl(
+                g.latitude,
+                g.longitude,
+                'current=weather_code,temperature_2m,precipitation_1h,cloud_cover',
+              ),
+              signal,
+            );
+            const current = f.current;
+            if (!current) return null;
+
+            const weatherCode = current.weather_code ?? 0;
+            const precipitation = current.precipitation_1h ?? 0;
+            const cloudCover = current.cloud_cover ?? 0;
+            const temp = current.temperature_2m ?? 0;
+
+            // Determine if it's really raining using multiple signals:
+            // 1. Weather code indicates precipitation
+            // 2. Actual precipitation in the last hour > 0
+            // 3. Cloud cover is high (supports rain)
+            const codeSaysRain = isRaining(weatherCode);
+            const hasPrecipitation = precipitation > 0;
+            const cloudy = cloudCover >= 50;
+
+            // Confidence levels:
+            // - Alta: weather code says rain AND actual precipitation > 0
+            // - Média: weather code says rain OR (precipitation > 0 AND cloudy)
+            // - Baixa: only one signal indicates rain
+            let confidence: 'alta' | 'média' | 'baixa' | null = null;
+            if (codeSaysRain && hasPrecipitation) {
+              confidence = 'alta';
+            } else if (codeSaysRain || (hasPrecipitation && cloudy)) {
+              confidence = 'média';
+            } else if (codeSaysRain || hasPrecipitation) {
+              confidence = 'baixa';
+            }
+
+            if (!confidence) return null;
+
+            return { name, temp, precipitation, cloudCover, confidence };
           } catch (err) {
             if (err instanceof Error && err.name === 'AbortError') throw err;
             return null;
@@ -55,10 +103,14 @@ export default function RainPage() {
       );
       if (signal?.aborted) return;
       const raining = results.filter((r): r is RainItem => r !== null);
+      // Sort by confidence: alta first, then média, then baixa
+      const confidenceOrder = { alta: 0, média: 1, baixa: 2 };
+      raining.sort((a, b) => confidenceOrder[a.confidence] - confidenceOrder[b.confidence]);
       setItems(raining);
+      const highConfidence = raining.filter((r) => r.confidence === 'alta').length;
       setMessage(
         raining.length
-          ? `${raining.length} cidade(s) com chuva agora.`
+          ? `${raining.length} cidade(s) com chuva agora (${highConfidence} com confirmação alta).`
           : 'Nenhuma cidade da lista está com chuva neste momento.',
       );
     } catch {
@@ -120,6 +172,28 @@ export default function RainPage() {
               <h3>{item.name}</h3>
               <div>Chovendo agora</div>
               <div>{formatValue(item.temp, '°C')}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                {item.precipitation > 0
+                  ? `${item.precipitation.toFixed(1)} mm/h`
+                  : 'Sem medição'}
+                {' · '}
+                {item.cloudCover}% nuvens
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  marginTop: 6,
+                  color:
+                    item.confidence === 'alta'
+                      ? '#22c55e'
+                      : item.confidence === 'média'
+                        ? '#eab308'
+                        : '#94a3b8',
+                }}
+              >
+                Confiança: {item.confidence}
+              </div>
               <Link className="chip" to={`/?cidade=${encodeURIComponent(item.name)}&tema=${theme}`}>
                 Ver previsão desta cidade
               </Link>
