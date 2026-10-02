@@ -226,11 +226,12 @@ export default function WeatherPage() {
   // marker, so the radar of São Paulo or Recife opened Goiânia.
   const radarUrl = useMemo(() => {
     const { latitude, longitude } = weather || {};
-    const marker =
-      Number.isFinite(latitude) && Number.isFinite(longitude)
-        ? `&marker=location:${latitude.toFixed(4)},${longitude.toFixed(4)},10`
-        : '';
-    return `https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface${marker}`;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return 'https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface';
+    }
+    // Zoom level 10 gives a good city-level view; 8 is regional, 12 is street-level.
+    const zoom = 10;
+    return `https://www.windy.com/-Rain-radar?lat=${latitude.toFixed(4)}&lon=${longitude.toFixed(4)}&zoom=${zoom}&metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface`;
   }, [weather]);
 
   return (
