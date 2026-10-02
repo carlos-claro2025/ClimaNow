@@ -1,17 +1,24 @@
-import {
-  CloudDrizzle,
-  CloudFog,
-  CloudLightning,
-  CloudMoon,
-  CloudRain,
-  CloudSun,
-  Moon,
-  Snowflake,
-  SunMedium,
-} from 'lucide-react';
-
 export const MONITORED = ['Goiânia', 'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Brasília', 'Salvador', 'Fortaleza', 'Recife'];
 export const POPULAR = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília'];
+
+// Hardcoded coordinates for the monitored cities so the rain page doesn't need
+// 10 geocoding requests on every mount. The TTL cache below covers everything
+// else, so a city searched once is never re-fetched within the window.
+const KNOWN_COORDS = {
+  'Goiânia': { latitude: -16.6869, longitude: -49.2648 },
+  'São Paulo': { latitude: -23.5505, longitude: -46.6333 },
+  'Rio de Janeiro': { latitude: -22.9068, longitude: -43.1729 },
+  'Belo Horizonte': { latitude: -19.9167, longitude: -43.9333 },
+  'Curitiba': { latitude: -25.4284, longitude: -49.2733 },
+  'Porto Alegre': { latitude: -30.0346, longitude: -51.2177 },
+  'Brasília': { latitude: -15.7942, longitude: -47.8822 },
+  'Salvador': { latitude: -12.9714, longitude: -38.5014 },
+  'Fortaleza': { latitude: -3.7312, longitude: -38.5267 },
+  'Recife': { latitude: -8.0476, longitude: -34.8770 },
+};
+
+const GEOCODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const geocodeCache = new Map();
 
 const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -22,9 +29,6 @@ const REQUEST_TIMEOUT_MS = 10000;
 const INMET_HOME = 'https://avisos.inmet.gov.br/';
 
 const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
-const SNOW_CODES = new Set([71, 73, 75, 77, 85, 86]);
-
-const isSnow = (code) => SNOW_CODES.has(code);
 
 export const isRaining = (code) => RAIN_CODES.has(code);
 
@@ -83,8 +87,16 @@ export function safeExternalUrl(link, fallback = INMET_HOME) {
 }
 
 export async function geocode(name, signal) {
+  const known = KNOWN_COORDS[name];
+  if (known) return known;
+
+  const cached = geocodeCache.get(name);
+  if (cached && Date.now() - cached.at < GEOCODE_TTL_MS) return cached.result;
+
   const data = await fetchJson(`${GEOCODE_URL}?name=${encodeURIComponent(name)}&count=1&language=pt&format=json`, signal);
-  return data.results?.[0] || null;
+  const result = data.results?.[0] || null;
+  geocodeCache.set(name, { result, at: Date.now() });
+  return result;
 }
 
 export function forecastUrl(latitude, longitude, params) {
@@ -95,38 +107,6 @@ export function formatDate(date) {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(date);
 }
 
-export function formatValue(value, unit = '', digits = 1) {
-  if (!Number.isFinite(value)) return unit ? `-- ${unit}` : '--';
-  return unit ? `${value.toFixed(digits)} ${unit}` : value.toFixed(digits);
-}
-
-export function iconFor(code, isDay = true, size = 58) {
-  const sun = <SunMedium size={size} color="#fbbf24" />;
-  const moon = <Moon size={size} color="#c4b5fd" />;
-  if (code === 0) return isDay ? sun : moon;
-  if (code === 1 || code === 2) return isDay ? <CloudSun size={size} color="#fbbf24" /> : <CloudMoon size={size} color="#c4b5fd" />;
-  if (code === 3) return <CloudSun size={size} color={isDay ? '#fbbf24' : '#c4b5fd'} />;
-  // Snow must be checked before the rain ranges: 71-77 and 85-86 overlap 61-82.
-  if (isSnow(code)) return <Snowflake size={size} />;
-  if (code >= 45 && code <= 48) return <CloudFog size={size} />;
-  if (code >= 51 && code <= 57) return <CloudDrizzle size={size} />;
-  if (code >= 61 && code <= 82) return <CloudRain size={size} />;
-  if (code >= 95) return <CloudLightning size={size} />;
-  return isDay ? sun : moon;
-}
-
-export function labelFor(code) {
-  if (code === 0) return 'Céu limpo';
-  if (code === 1 || code === 2) return 'Parcialmente nublado';
-  if (code === 3) return 'Nublado';
-  if (isSnow(code)) return 'Neve';
-  if (code >= 45 && code <= 48) return 'Neblina';
-  if (code >= 51 && code <= 57) return 'Garoa';
-  if (code >= 61 && code <= 82) return 'Chuva';
-  if (code >= 95) return 'Tempestade';
-  return 'Condição variável';
-}
-
 function cleanText(html) {
   return html
     .replace(/<[^>]*>/g, ' ')
@@ -134,6 +114,11 @@ function cleanText(html) {
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+export function formatValue(value, unit = '', digits = 1) {
+  if (!Number.isFinite(value)) return unit ? `-- ${unit}` : '--';
+  return unit ? `${value.toFixed(digits)} ${unit}` : value.toFixed(digits);
 }
 
 export function normalizeWarning(item) {

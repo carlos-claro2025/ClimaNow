@@ -15,9 +15,8 @@ import {
   formatDate,
   formatValue,
   geocode,
-  iconFor,
-  labelFor,
 } from '../../lib/clima';
+import { iconFor, labelFor } from '../../lib/icons';
 import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
 
@@ -84,7 +83,7 @@ export default function WeatherPage() {
           forecastUrl(
             g.latitude,
             g.longitude,
-            'forecast_days=3&current=temperature_2m,weather_code,is_day,wind_speed_10m,relative_humidity_2m,pressure_msl&daily=weather_code,temperature_2m_max,temperature_2m_min&hourly=temperature_2m',
+            'forecast_days=3&current=temperature_2m,weather_code,is_day,wind_speed_10m,relative_humidity_2m,pressure_msl&daily=weather_code,temperature_2m_max,temperature_2m_min',
           ),
           signal,
         );
