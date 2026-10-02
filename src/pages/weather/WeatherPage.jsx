@@ -257,7 +257,9 @@ export default function WeatherPage() {
           </div>
         ) : null}
         <div className="search-row">
+          <label htmlFor="city-search" className="sr-only">Buscar cidade</label>
           <input
+            id="city-search"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && selectCity(input)}
