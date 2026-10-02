@@ -9,11 +9,12 @@ import {
   Snowflake,
   SunMedium,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 const SNOW_CODES = new Set([71, 73, 75, 77, 85, 86]);
-const isSnow = (code) => SNOW_CODES.has(code);
+const isSnow = (code: number): boolean => SNOW_CODES.has(code);
 
-export function iconFor(code, isDay = true, size = 58) {
+export function iconFor(code: number, isDay = true, size = 58): ReactNode {
   const sun = <SunMedium size={size} color="#fbbf24" />;
   const moon = <Moon size={size} color="#c4b5fd" />;
   if (code === 0) return isDay ? sun : moon;
@@ -28,7 +29,7 @@ export function iconFor(code, isDay = true, size = 58) {
   return isDay ? sun : moon;
 }
 
-export function labelFor(code) {
+export function labelFor(code: number): string {
   if (code === 0) return 'Céu limpo';
   if (code === 1 || code === 2) return 'Parcialmente nublado';
   if (code === 3) return 'Nublado';

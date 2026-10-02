@@ -1,7 +1,13 @@
 import { Sun, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export default function Topbar({ theme, onToggle, city }) {
+interface TopbarProps {
+  theme: 'claro' | 'escuro';
+  onToggle: () => void;
+  city: string | null;
+}
+
+export default function Topbar({ theme, onToggle, city }: TopbarProps) {
   const homeParams = new URLSearchParams({ tema: theme });
   if (city) homeParams.set('cidade', city);
 

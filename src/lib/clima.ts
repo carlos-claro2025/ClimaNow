@@ -1,10 +1,30 @@
-export const MONITORED = ['Goiânia', 'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Brasília', 'Salvador', 'Fortaleza', 'Recife'];
-export const POPULAR = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília'];
+export const MONITORED = ['Goiânia', 'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Brasília', 'Salvador', 'Fortaleza', 'Recife'] as const;
+export const POPULAR = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasília'] as const;
+
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export interface Warning {
+  title: string;
+  description: string;
+  link: string;
+}
+
+export interface CemadenData {
+  muitoAlto: number;
+  alto: number;
+  moderado: number;
+  geo: number;
+  hidro: number;
+  atualizado: string;
+}
 
 // Hardcoded coordinates for the monitored cities so the rain page doesn't need
 // 10 geocoding requests on every mount. The TTL cache below covers everything
 // else, so a city searched once is never re-fetched within the window.
-const KNOWN_COORDS = {
+const KNOWN_COORDS: Record<string, Coordinates> = {
   'Goiânia': { latitude: -16.6869, longitude: -49.2648 },
   'São Paulo': { latitude: -23.5505, longitude: -46.6333 },
   'Rio de Janeiro': { latitude: -22.9068, longitude: -43.1729 },
@@ -18,7 +38,7 @@ const KNOWN_COORDS = {
 };
 
 const GEOCODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const geocodeCache = new Map();
+const geocodeCache = new Map<string, { result: Coordinates | null; at: number }>();
 
 const GEOCODE_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -30,30 +50,30 @@ const INMET_HOME = 'https://avisos.inmet.gov.br/';
 
 const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
 
-export const isRaining = (code) => RAIN_CODES.has(code);
+export const isRaining = (code: number): boolean => RAIN_CODES.has(code);
 
-export const INMET_OFFLINE = { title: 'Sem conexão com o INMET', description: '', link: '' };
+export const INMET_OFFLINE: Warning = { title: 'Sem conexão com o INMET', description: '', link: '' };
 
 // CEMADEN sends no CORS headers, so the browser can only reach it through a
 // proxy. The Vite dev server and nginx.conf serve `/api/cemaden`; the Wasmer
 // Edge worker covers hosts that cannot run a server-side proxy. The first base
 // that answers wins, and VITE_CEMADEN_BASE overrides the list entirely.
-export const CEMADEN_BASES = [
+export const CEMADEN_BASES: string[] = [
   import.meta.env.VITE_CEMADEN_BASE,
   '/api/cemaden',
   'https://cemaden-proxy.wasmer.app',
 ].filter(Boolean);
 
-export const EMPTY_CEMADEN = { muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '' };
+export const EMPTY_CEMADEN: CemadenData = { muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '' };
 
 // The caller's signal stays the one that distinguishes abort from failure (the
 // pages check `signal.aborted` to skip state updates after unmount), so the
 // deadline is merged into a derived controller instead of replacing it. Without
 // a deadline a hung upstream left the promise pending and the UI stuck on
 // "loading" forever.
-async function fetchWithTimeout(url, signal, init = {}) {
+async function fetchWithTimeout(url: string, signal?: AbortSignal, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
-  const forwardAbort = () => controller.abort(signal.reason);
+  const forwardAbort = () => controller.abort(signal?.reason);
   if (signal?.aborted) controller.abort(signal.reason);
   else signal?.addEventListener('abort', forwardAbort, { once: true });
   const timer = setTimeout(
@@ -68,16 +88,16 @@ async function fetchWithTimeout(url, signal, init = {}) {
   }
 }
 
-export async function fetchJson(url, signal) {
+export async function fetchJson<T = unknown>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetchWithTimeout(url, signal);
   if (!res.ok) throw new Error('network');
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 // Warning links come from a remote RSS feed, so the scheme is untrusted:
 // window.open('javascript:...') would execute in this page's origin. Only plain
 // web URLs survive, anything else falls back to the official INMET page.
-export function safeExternalUrl(link, fallback = INMET_HOME) {
+export function safeExternalUrl(link: string, fallback = INMET_HOME): string {
   try {
     const url = new URL(link);
     return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : fallback;
@@ -86,28 +106,28 @@ export function safeExternalUrl(link, fallback = INMET_HOME) {
   }
 }
 
-export async function geocode(name, signal) {
+export async function geocode(name: string, signal?: AbortSignal): Promise<Coordinates | null> {
   const known = KNOWN_COORDS[name];
   if (known) return known;
 
   const cached = geocodeCache.get(name);
   if (cached && Date.now() - cached.at < GEOCODE_TTL_MS) return cached.result;
 
-  const data = await fetchJson(`${GEOCODE_URL}?name=${encodeURIComponent(name)}&count=1&language=pt&format=json`, signal);
+  const data = await fetchJson<{ results?: Coordinates[] }>(`${GEOCODE_URL}?name=${encodeURIComponent(name)}&count=1&language=pt&format=json`, signal);
   const result = data.results?.[0] || null;
   geocodeCache.set(name, { result, at: Date.now() });
   return result;
 }
 
-export function forecastUrl(latitude, longitude, params) {
+export function forecastUrl(latitude: number, longitude: number, params: string): string {
   return `${FORECAST_URL}?latitude=${latitude}&longitude=${longitude}&timezone=auto&${params}`;
 }
 
-export function formatDate(date) {
+export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(date);
 }
 
-function cleanText(html) {
+function cleanText(html: string): string {
   return html
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/g, ' ')
@@ -116,12 +136,12 @@ function cleanText(html) {
     .trim();
 }
 
-export function formatValue(value, unit = '', digits = 1) {
+export function formatValue(value: number, unit = '', digits = 1): string {
   if (!Number.isFinite(value)) return unit ? `-- ${unit}` : '--';
   return unit ? `${value.toFixed(digits)} ${unit}` : value.toFixed(digits);
 }
 
-export function normalizeWarning(item) {
+export function normalizeWarning(item: string | Partial<Warning> | null | undefined): Warning {
   if (!item) return { title: '', description: '', link: '' };
   if (typeof item === 'string') {
     const [title, ...rest] = item.split(' — ');
@@ -136,7 +156,7 @@ export function normalizeWarning(item) {
   };
 }
 
-export function parseRss(xmlText) {
+export function parseRss(xmlText: string): Warning[] {
   const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
   return Array.from(doc.querySelectorAll('item'))
     .slice(0, 8)
@@ -147,45 +167,46 @@ export function parseRss(xmlText) {
     }));
 }
 
-export async function fetchInmetWarnings(signal) {
-  const data = await fetchJson(INMET_ACTIVE_URL, signal);
+export async function fetchInmetWarnings(signal?: AbortSignal): Promise<Warning[]> {
+  const data = await fetchJson<Record<string, unknown> | unknown[]>(INMET_ACTIVE_URL, signal);
   const list = Array.isArray(data) ? data : Object.values(data || {});
-  return list.slice(0, 3).map((x) =>
-    normalizeWarning({
-      title: x.descricao || x.titulo || x.hazard || x.urgencia || 'Aviso meteorológico',
-      description: [x.severidade || x.nivel || x.description, x.validade || x.valid_until || x.fim || x.fim_vigencia]
+  return list.slice(0, 3).map((x) => {
+    const obj = x as Record<string, unknown>;
+    return normalizeWarning({
+      title: (obj.descricao || obj.titulo || obj.hazard || obj.urgencia || 'Aviso meteorológico') as string,
+      description: [obj.severidade || obj.nivel || obj.description, obj.validade || obj.valid_until || obj.fim || obj.fim_vigencia]
         .filter(Boolean)
         .join(' • '),
-      link: x.link || x.url || '',
-    }),
-  );
+      link: (obj.link || obj.url || '') as string,
+    });
+  });
 }
 
-export async function fetchRss(signal) {
+export async function fetchRss(signal?: AbortSignal): Promise<Warning[]> {
   const res = await fetchWithTimeout(INMET_RSS_URL, signal);
   if (!res.ok) throw new Error('network');
   return parseRss(await res.text());
 }
 
-export async function fetchCemaden(signal) {
-  let json = null;
+export async function fetchCemaden(signal?: AbortSignal): Promise<CemadenData> {
+  let json: Record<string, unknown> | null = null;
   for (const base of CEMADEN_BASES) {
     try {
-      json = await fetchJson(`${base}/wsAlertas2`, signal);
+      json = await fetchJson<Record<string, unknown>>(`${base}/wsAlertas2`, signal);
       break;
     } catch (err) {
-      if (err.name === 'AbortError') throw err;
+      if (err instanceof Error && err.name === 'AbortError') throw err;
     }
   }
   if (!json) throw new Error('network');
 
-  const alertas = Array.isArray(json.alertas) ? json.alertas : [];
+  const alertas = Array.isArray(json.alertas) ? (json.alertas as Array<Record<string, unknown>>) : [];
   return {
     muitoAlto: alertas.filter((a) => a.nivel === 'Muito Alto').length,
     alto: alertas.filter((a) => a.nivel === 'Alto').length,
     moderado: alertas.filter((a) => a.nivel === 'Moderado').length,
-    geo: alertas.filter((a) => (a.evento || '').startsWith('Mov')).length,
-    hidro: alertas.filter((a) => /Enx|Ris|Hidro/i.test(a.evento)).length,
-    atualizado: json.atualizado || '',
+    geo: alertas.filter((a) => String(a.evento || '').startsWith('Mov')).length,
+    hidro: alertas.filter((a) => /Enx|Ris|Hidro/i.test(String(a.evento))).length,
+    atualizado: (json.atualizado as string) || '',
   };
 }

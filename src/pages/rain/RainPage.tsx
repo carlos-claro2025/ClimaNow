@@ -15,6 +15,11 @@ import {
 import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
 
+interface RainItem {
+  name: string;
+  temp: number;
+}
+
 export default function RainPage() {
   const { theme, toggle } = useTheme();
   // Read-only: this page never selects a city, it only forwards the one the
@@ -26,10 +31,10 @@ export default function RainPage() {
   const { warnings, ticker, selectedWarning, setSelectedWarning, refresh: refreshInmet, openWarning } =
     useInmetAlerts();
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState<RainItem[]>([]);
   const [message, setMessage] = useState('Atualizando...');
 
-  const refresh = useCallback(async (signal) => {
+  const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
       // Every city is fetched concurrently. The previous serial for-of issued 20
       // round trips one after another, so /chuva took as long as the slowest
@@ -40,16 +45,16 @@ export default function RainPage() {
           try {
             const g = await geocode(name, signal);
             if (!g) return null;
-            const f = await fetchJson(forecastUrl(g.latitude, g.longitude, 'current=weather_code,temperature_2m'), signal);
-            return isRaining(f.current?.weather_code) ? { name, temp: f.current.temperature_2m } : null;
+            const f = await fetchJson<{ current?: { weather_code?: number; temperature_2m?: number } }>(forecastUrl(g.latitude, g.longitude, 'current=weather_code,temperature_2m'), signal);
+            return isRaining(f.current?.weather_code ?? 0) ? { name, temp: f.current!.temperature_2m! } : null;
           } catch (err) {
-            if (err.name === 'AbortError') throw err;
+            if (err instanceof Error && err.name === 'AbortError') throw err;
             return null;
           }
         }),
       );
       if (signal?.aborted) return;
-      const raining = results.filter(Boolean);
+      const raining = results.filter((r): r is RainItem => r !== null);
       setItems(raining);
       setMessage(
         raining.length

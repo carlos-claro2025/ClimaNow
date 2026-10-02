@@ -1,22 +1,27 @@
 import { useEffect, useRef } from 'react';
-import { safeExternalUrl } from '../lib/clima';
+import { safeExternalUrl, type Warning } from '../lib/clima';
+
+interface WarningModalProps {
+  warning: Warning | null;
+  onClose: () => void;
+}
 
 // The INMET detail modal, identical in WeatherPage and RainPage before this
 // extraction. Takes the selected (normalized) warning plus the state that
 // opens and closes it, so both pages can reuse one source of truth.
-export default function WarningModal({ warning, onClose }) {
-  const cardRef = useRef(null);
+export default function WarningModal({ warning, onClose }: WarningModalProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape and trap focus inside the modal while it's open.
   useEffect(() => {
     if (!warning) return;
-    const handleKey = (e) => {
+    const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       if (e.key === 'Tab' && cardRef.current) {
         const focusable = cardRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
         if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
+        const first = focusable[0] as HTMLElement;
+        const last = focusable[focusable.length - 1] as HTMLElement;
         if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
           last.focus();

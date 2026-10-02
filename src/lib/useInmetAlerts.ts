@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { INMET_OFFLINE, fetchInmetWarnings, fetchRss, normalizeWarning } from './clima';
+import { INMET_OFFLINE, fetchInmetWarnings, fetchRss, normalizeWarning, type Warning } from './clima';
 
 // Shared by WeatherPage and RainPage: both fetch the INMET warnings and RSS
 // ticker, refresh on demand, and open the first entry in a modal. Before this
 // hook, each page carried its own copy of that logic, so a bug fixed in one
 // stayed unfixed in the other.
 export function useInmetAlerts() {
-  const [warnings, setWarnings] = useState([]);
-  const [ticker, setTicker] = useState([]);
-  const [selectedWarning, setSelectedWarning] = useState(null);
+  const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [ticker, setTicker] = useState<Warning[]>([]);
+  const [selectedWarning, setSelectedWarning] = useState<Warning | null>(null);
 
-  const loadWarnings = useCallback(async (signal) => {
+  const loadWarnings = useCallback(async (signal?: AbortSignal) => {
     try {
       const list = await fetchInmetWarnings(signal);
       if (!signal?.aborted) setWarnings(list);
@@ -19,7 +19,7 @@ export function useInmetAlerts() {
     }
   }, []);
 
-  const loadTicker = useCallback(async (signal) => {
+  const loadTicker = useCallback(async (signal?: AbortSignal) => {
     try {
       const list = await fetchRss(signal);
       if (!signal?.aborted) setTicker(list);

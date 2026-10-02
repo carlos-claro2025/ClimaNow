@@ -15,12 +15,37 @@ import {
   formatDate,
   formatValue,
   geocode,
+  type CemadenData,
 } from '../../lib/clima';
 import { iconFor, labelFor } from '../../lib/icons';
 import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
 
-const EMPTY_PLACE = { name: null, temp: null };
+interface WeatherData {
+  place: string;
+  temp: number | null;
+  code: number | null;
+  isDay: boolean;
+  wind: number | null;
+  humidity: number | null;
+  pressure: number | null;
+  latitude: number;
+  longitude: number;
+}
+
+interface ForecastDay {
+  date: string;
+  code: number;
+  max: number;
+  min: number;
+}
+
+interface Place {
+  name: string | null;
+  temp: number | null;
+}
+
+const EMPTY_PLACE: Place = { name: null, temp: null };
 const DEFAULT_CITY = 'Goiânia';
 const MAX_POPULAR = 7;
 // The defaults stay on the chips for the whole session; searching a city appends
@@ -40,14 +65,14 @@ export default function WeatherPage() {
     useInmetAlerts();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [weather, setWeather] = useState(null);
-  const [forecast, setForecast] = useState([]);
-  const [popular, setPopular] = useState(POPULAR);
-  const [comparison, setComparison] = useState({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
-  const [cemadem, setCemadem] = useState(EMPTY_CEMADEN);
-  const [lastUpdate, setLastUpdate] = useState(null);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [forecast, setForecast] = useState<ForecastDay[]>([]);
+  const [popular, setPopular] = useState<string[]>([...POPULAR]);
+  const [comparison, setComparison] = useState<{ hot: Place; cold: Place }>({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
+  const [cemadem, setCemadem] = useState<CemadenData & { error?: boolean }>(EMPTY_CEMADEN);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [searchCounts, setSearchCounts] = useState(() => {
+  const [searchCounts, setSearchCounts] = useState<Record<string, number>>(() => {
     try {
       return JSON.parse(localStorage.getItem('clima-search-counts') || '{}');
     } catch {
@@ -59,7 +84,7 @@ export default function WeatherPage() {
     const ranked = Object.entries(searchCounts)
       .sort((a, b) => b[1] - a[1])
       .map(([name]) => name)
-      .filter((name) => !POPULAR.includes(name));
+      .filter((name) => !POPULAR.includes(name as (typeof POPULAR)[number]));
     setPopular([...POPULAR, ...ranked].slice(0, MAX_POPULAR));
     // Capped so localStorage cannot grow without bound as cities are searched.
     const kept = Object.fromEntries(
@@ -71,7 +96,7 @@ export default function WeatherPage() {
   }, [searchCounts]);
 
   const loadData = useCallback(
-    async (name, signal) => {
+    async (name: string, signal?: AbortSignal) => {
       const query = (name || '').trim();
       if (!query) return;
       setLoading(true);
@@ -79,7 +104,10 @@ export default function WeatherPage() {
       try {
         const g = await geocode(query, signal);
         if (!g) throw new Error('notfound');
-        const f = await fetchJson(
+        const f = await fetchJson<{
+          current?: { temperature_2m?: number; weather_code?: number; is_day?: number; wind_speed_10m?: number; relative_humidity_2m?: number; pressure_msl?: number };
+          daily?: { time?: string[]; weather_code?: number[]; temperature_2m_max?: number[]; temperature_2m_min?: number[] };
+        }>(
           forecastUrl(
             g.latitude,
             g.longitude,
@@ -102,15 +130,15 @@ export default function WeatherPage() {
         setForecast(
           (f.daily?.time || []).slice(0, 3).map((d, idx) => ({
             date: d,
-            code: f.daily.weather_code[idx],
-            max: f.daily.temperature_2m_max[idx],
-            min: f.daily.temperature_2m_min[idx],
+            code: f.daily!.weather_code![idx],
+            max: f.daily!.temperature_2m_max![idx],
+            min: f.daily!.temperature_2m_min![idx],
           })),
         );
         setLastUpdate(new Date());
       } catch (e) {
         if (signal?.aborted) return;
-        setError(e.message === 'notfound' ? 'Cidade não encontrada.' : 'Falha ao consultar clima.');
+        setError(e instanceof Error && e.message === 'notfound' ? 'Cidade não encontrada.' : 'Falha ao consultar clima.');
       } finally {
         if (!signal?.aborted) setLoading(false);
       }
@@ -118,25 +146,25 @@ export default function WeatherPage() {
     [],
   );
 
-  const refreshCemaden = useCallback(async (signal) => {
+  const refreshCemaden = useCallback(async (signal?: AbortSignal) => {
     const [cemademResult] = await Promise.allSettled([fetchCemaden(signal)]);
     if (signal?.aborted) return;
     setCemadem(cemademResult.status === 'fulfilled' ? cemademResult.value : { ...EMPTY_CEMADEN, error: true });
   }, []);
 
-  const loadComparison = useCallback(async (signal) => {
+  const loadComparison = useCallback(async (signal?: AbortSignal) => {
     try {
       const temps = await Promise.all(
         MONITORED.map(async (name) => {
           const g = await geocode(name, signal);
           if (!g) return null;
-          const f = await fetchJson(forecastUrl(g.latitude, g.longitude, 'current=temperature_2m'), signal);
+          const f = await fetchJson<{ current?: { temperature_2m?: number } }>(forecastUrl(g.latitude, g.longitude, 'current=temperature_2m'), signal);
           const temp = f.current?.temperature_2m;
           return Number.isFinite(temp) ? { name, temp } : null;
         }),
       );
       if (signal?.aborted) return;
-      const valid = temps.filter(Boolean).sort((a, b) => b.temp - a.temp);
+      const valid = temps.filter((t): t is Place => t !== null).sort((a, b) => b.temp! - a.temp!);
       setComparison({ hot: valid[0] || EMPTY_PLACE, cold: valid[valid.length - 1] || EMPTY_PLACE });
     } catch {
       if (signal?.aborted) return;
@@ -166,7 +194,7 @@ export default function WeatherPage() {
   }, [city, loadData, reloadToken]);
 
   const selectCity = useCallback(
-    (name) => {
+    (name: string) => {
       const query = (name || '').trim();
       if (!query) return;
       setInput(query);
@@ -190,7 +218,7 @@ export default function WeatherPage() {
     refreshInmet();
   }, [refreshInmet]);
 
-  const status = useMemo(() => (weather ? labelFor(weather.code) : ''), [weather]);
+  const status = useMemo(() => (weather ? labelFor(weather.code ?? 0) : ''), [weather]);
   // Only blank the readings on the very first load. Blanking them on every
   // refresh is what made the temperature flicker during a city switch.
   const pending = loading && !weather;
@@ -245,13 +273,13 @@ export default function WeatherPage() {
         {comparison.hot?.name || comparison.cold?.name ? (
           <div style={{ display: 'flex', gap: 12, margin: '10px 0 6px', flexWrap: 'wrap' }}>
             {comparison.hot?.name && (
-              <button className="chip chip-hot" onClick={() => selectCity(comparison.hot.name)}>
-                <Flame size={14} /> Mais quente: {comparison.hot.name} — {formatValue(comparison.hot.temp, '°C')}
+              <button className="chip chip-hot" onClick={() => selectCity(comparison.hot.name!)}>
+                <Flame size={14} /> Mais quente: {comparison.hot.name} — {formatValue(comparison.hot.temp ?? 0, '°C')}
               </button>
             )}
             {comparison.cold?.name && (
-              <button className="chip chip-cold" onClick={() => selectCity(comparison.cold.name)}>
-                <Snowflake size={14} /> Mais frio: {comparison.cold.name} — {formatValue(comparison.cold.temp, '°C')}
+              <button className="chip chip-cold" onClick={() => selectCity(comparison.cold.name!)}>
+                <Snowflake size={14} /> Mais frio: {comparison.cold.name} — {formatValue(comparison.cold.temp ?? 0, '°C')}
               </button>
             )}
           </div>
@@ -281,22 +309,22 @@ export default function WeatherPage() {
             {loading ? <LoaderCircle className="spin" /> : iconFor(weather?.code ?? 0, weather?.isDay ?? true)}
           </div>
           <div>
-            <div className="temp">{pending ? '--°C' : formatValue(weather?.temp, '°C')}</div>
+            <div className="temp">{pending ? '--°C' : formatValue(weather?.temp ?? 0, '°C')}</div>
             <div>{pending ? '--' : status}</div>
           </div>
         </div>
         <div className="metrics">
           <div className="metric">
             <div className="label">Vento</div>
-            <div className="value">{pending ? '-- km/h' : formatValue(weather?.wind, 'km/h')}</div>
+            <div className="value">{pending ? '-- km/h' : formatValue(weather?.wind ?? 0, 'km/h')}</div>
           </div>
           <div className="metric">
             <div className="label">Umidade</div>
-            <div className="value">{pending ? '-- %' : formatValue(weather?.humidity, '%', 0)}</div>
+            <div className="value">{pending ? '-- %' : formatValue(weather?.humidity ?? 0, '%', 0)}</div>
           </div>
           <div className="metric">
             <div className="label">Pressão</div>
-            <div className="value">{pending ? '-- hPa' : formatValue(weather?.pressure, 'hPa', 0)}</div>
+            <div className="value">{pending ? '-- hPa' : formatValue(weather?.pressure ?? 0, 'hPa', 0)}</div>
           </div>
           <div className="metric">
             <div className="label">Relógio</div>

@@ -5,7 +5,7 @@ import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './styles.css';
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>

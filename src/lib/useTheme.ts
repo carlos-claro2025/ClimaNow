@@ -3,9 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 
 const STORAGE_KEY = 'clima-theme';
 
-const normalize = (value) => (value === 'claro' ? 'claro' : 'escuro');
+type Theme = 'claro' | 'escuro';
 
-function readInitialTheme(urlTheme) {
+const normalize = (value: string | null): Theme => (value === 'claro' ? 'claro' : 'escuro');
+
+function readInitialTheme(urlTheme: string | null): Theme {
   let stored = '';
   try {
     stored = localStorage.getItem(STORAGE_KEY) || '';
@@ -19,7 +21,7 @@ function readInitialTheme(urlTheme) {
 
 export function useTheme() {
   const [params, setParams] = useSearchParams();
-  const [theme, setTheme] = useState(() => readInitialTheme(params.get('tema')));
+  const [theme, setTheme] = useState<Theme>(() => readInitialTheme(params.get('tema')));
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -31,7 +33,7 @@ export function useTheme() {
   }, [theme]);
 
   const toggle = useCallback(() => {
-    const next = theme === 'claro' ? 'escuro' : 'claro';
+    const next: Theme = theme === 'claro' ? 'escuro' : 'claro';
     setTheme(next);
     // Written from the toggle only. An effect that mirrored `theme` into the URL on
     // every params change made this a second writer of ?cidade=/?tema=, resolving
