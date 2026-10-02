@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CloudRain, Flame, LoaderCircle, RefreshCw, Search, Snowflake } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import Clock from '../../components/Clock';
 import Topbar from '../../components/Topbar';
 import InmetBar from '../../components/InmetBar';
 import {
@@ -19,11 +20,17 @@ import {
   iconFor,
   labelFor,
   normalizeWarning,
+  safeExternalUrl,
 } from '../../lib/clima';
 import { useTheme } from '../../lib/useTheme';
 
 const EMPTY_PLACE = { name: null, temp: null };
 const DEFAULT_CITY = 'Goiânia';
+const MAX_POPULAR = 7;
+// The defaults stay on the chips for the whole session; searching a city appends
+// to them. Replacing the list with search history left a single chip after the
+// first search, hiding São Paulo, Rio, Belo Horizonte and Brasília.
+const MAX_TRACKED_CITIES = 20;
 
 export default function WeatherPage() {
   const [params, setParams] = useSearchParams();
@@ -40,7 +47,6 @@ export default function WeatherPage() {
   const [forecast, setForecast] = useState([]);
   const [popular, setPopular] = useState(POPULAR);
   const [comparison, setComparison] = useState({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
-  const [clock, setClock] = useState('--:--:--');
   const [selectedWarning, setSelectedWarning] = useState(null);
   const [ticker, setTicker] = useState([]);
   const [cemadem, setCemadem] = useState(EMPTY_CEMADEN);
@@ -55,19 +61,18 @@ export default function WeatherPage() {
   });
 
   useEffect(() => {
-    const tick = () => setClock(new Date().toLocaleTimeString('pt-BR', { hour12: false }));
-    tick();
-    const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    const list = Object.entries(searchCounts)
+    const ranked = Object.entries(searchCounts)
       .sort((a, b) => b[1] - a[1])
-      .map(([k]) => k)
-      .slice(0, 4);
-    setPopular(list.length ? list : POPULAR);
-    localStorage.setItem('clima-search-counts', JSON.stringify(searchCounts));
+      .map(([name]) => name)
+      .filter((name) => !POPULAR.includes(name));
+    setPopular([...POPULAR, ...ranked].slice(0, MAX_POPULAR));
+    // Capped so localStorage cannot grow without bound as cities are searched.
+    const kept = Object.fromEntries(
+      Object.entries(searchCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, MAX_TRACKED_CITIES),
+    );
+    localStorage.setItem('clima-search-counts', JSON.stringify(kept));
   }, [searchCounts]);
 
   const loadData = useCallback(
@@ -212,6 +217,16 @@ export default function WeatherPage() {
   // Only blank the readings on the very first load. Blanking them on every
   // refresh is what made the temperature flicker during a city switch.
   const pending = loading && !weather;
+  // Windy pinpoints the selected city. It used to carry a hardcoded Goiânia
+  // marker, so the radar of São Paulo or Recife opened Goiânia.
+  const radarUrl = useMemo(() => {
+    const { latitude, longitude } = weather || {};
+    const marker =
+      Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? `&marker=location:${latitude.toFixed(4)},${longitude.toFixed(4)},10`
+        : '';
+    return `https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface${marker}`;
+  }, [weather]);
 
   return (
     <main className="app-shell">
@@ -245,12 +260,7 @@ export default function WeatherPage() {
             <div className="eyebrow">Previsão do tempo</div>
             <h1 className="title">{weather?.place || 'Goiânia, Goiás — Brasil'}</h1>
           </div>
-          <a
-            className="link link-radar"
-            href="https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface&marker=location:-16.68,-49.26,10"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a className="link link-radar" href={radarUrl} target="_blank" rel="noopener noreferrer">
             <CloudRain size={14} />
             Ver radar de chuva
           </a>
@@ -311,7 +321,9 @@ export default function WeatherPage() {
           </div>
           <div className="metric">
             <div className="label">Relógio</div>
-            <div className="value">{pending ? '--:--:--' : clock}</div>
+            <div className="value">
+              <Clock />
+            </div>
           </div>
         </div>
         <div className="forecast">
@@ -383,9 +395,7 @@ export default function WeatherPage() {
             <button
               className="chip"
               type="button"
-              onClick={() =>
-                window.open(selectedWarning.link || 'https://avisos.inmet.gov.br/', '_blank', 'noopener,noreferrer')
-              }
+              onClick={() => window.open(safeExternalUrl(selectedWarning.link), '_blank', 'noopener,noreferrer')}
             >
               Abrir no INMET
             </button>

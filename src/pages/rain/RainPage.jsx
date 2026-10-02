@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CloudRain, RefreshCw, Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Topbar from '../../components/Topbar';
 import InmetBar from '../../components/InmetBar';
 import {
@@ -14,11 +14,18 @@ import {
   geocode,
   isRaining,
   normalizeWarning,
+  safeExternalUrl,
 } from '../../lib/clima';
 import { useTheme } from '../../lib/useTheme';
 
 export default function RainPage() {
   const { theme, toggle } = useTheme();
+  // Read-only: this page never selects a city, it only forwards the one the
+  // visitor arrived with so the Topbar and the back link keep it.
+  const [params] = useSearchParams();
+  const city = params.get('cidade') || '';
+  const backParams = new URLSearchParams({ tema: theme });
+  if (city) backParams.set('cidade', city);
   const [warnings, setWarnings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
@@ -46,18 +53,31 @@ export default function RainPage() {
 
   const refresh = useCallback(async (signal) => {
     try {
-      const result = [];
-      for (const name of MONITORED) {
-        const g = await geocode(name, signal);
-        if (!g) continue;
-        const f = await fetchJson(forecastUrl(g.latitude, g.longitude, 'current=weather_code,temperature_2m'), signal);
-        if (isRaining(f.current?.weather_code)) {
-          result.push({ name, temp: f.current.temperature_2m });
-        }
-      }
+      // Every city is fetched concurrently. The previous serial for-of issued 20
+      // round trips one after another, so /chuva took as long as the slowest
+      // city instead of the sum of all of them. A city that fails is dropped on
+      // its own instead of blanking the whole list.
+      const results = await Promise.all(
+        MONITORED.map(async (name) => {
+          try {
+            const g = await geocode(name, signal);
+            if (!g) return null;
+            const f = await fetchJson(forecastUrl(g.latitude, g.longitude, 'current=weather_code,temperature_2m'), signal);
+            return isRaining(f.current?.weather_code) ? { name, temp: f.current.temperature_2m } : null;
+          } catch (err) {
+            if (err.name === 'AbortError') throw err;
+            return null;
+          }
+        }),
+      );
       if (signal?.aborted) return;
-      setItems(result);
-      setMessage(result.length ? `${result.length} cidade(s) com chuva agora.` : 'Nenhuma cidade da lista está com chuva neste momento.');
+      const raining = results.filter(Boolean);
+      setItems(raining);
+      setMessage(
+        raining.length
+          ? `${raining.length} cidade(s) com chuva agora.`
+          : 'Nenhuma cidade da lista está com chuva neste momento.',
+      );
     } catch {
       if (signal?.aborted) return;
       setItems([]);
@@ -101,7 +121,7 @@ export default function RainPage() {
 
   return (
     <main className="app-shell">
-      <Topbar theme={theme} onToggle={toggle} />
+      <Topbar theme={theme} onToggle={toggle} city={city} />
       <section className="card">
         <InmetBar warnings={warnings} ticker={ticker} onOpen={handleOpenWarnings} />
         <button
@@ -119,7 +139,7 @@ export default function RainPage() {
             <div className="eyebrow">Monitor de chuva</div>
             <h1 className="title">Cidades com chuva agora</h1>
           </div>
-          <Link className="link" to={`/?tema=${theme}`}>
+          <Link className="link" to={`/?${backParams}`}>
             Voltar ao clima
           </Link>
         </div>
@@ -156,9 +176,7 @@ export default function RainPage() {
             <button
               className="chip"
               type="button"
-              onClick={() =>
-                window.open(selectedWarning.link || 'https://avisos.inmet.gov.br/', '_blank', 'noopener,noreferrer')
-              }
+              onClick={() => window.open(safeExternalUrl(selectedWarning.link), '_blank', 'noopener,noreferrer')}
             >
               Abrir no INMET
             </button>

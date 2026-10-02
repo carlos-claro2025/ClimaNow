@@ -18,6 +18,9 @@ const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const INMET_ACTIVE_URL = 'https://apiprevmet3.inmet.gov.br/avisos/ativos';
 const INMET_RSS_URL = 'https://apiprevmet3.inmet.gov.br/avisos/rss';
 
+const REQUEST_TIMEOUT_MS = 10000;
+const INMET_HOME = 'https://avisos.inmet.gov.br/';
+
 const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
 const SNOW_CODES = new Set([71, 73, 75, 77, 85, 86]);
 
@@ -39,10 +42,44 @@ export const CEMADEN_BASES = [
 
 export const EMPTY_CEMADEN = { muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '' };
 
+// The caller's signal stays the one that distinguishes abort from failure (the
+// pages check `signal.aborted` to skip state updates after unmount), so the
+// deadline is merged into a derived controller instead of replacing it. Without
+// a deadline a hung upstream left the promise pending and the UI stuck on
+// "loading" forever.
+async function fetchWithTimeout(url, signal, init = {}) {
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort(signal.reason);
+  if (signal?.aborted) controller.abort(signal.reason);
+  else signal?.addEventListener('abort', forwardAbort, { once: true });
+  const timer = setTimeout(
+    () => controller.abort(new DOMException('Tempo limite excedido', 'TimeoutError')),
+    REQUEST_TIMEOUT_MS,
+  );
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', forwardAbort);
+  }
+}
+
 export async function fetchJson(url, signal) {
-  const res = await fetch(url, { signal });
+  const res = await fetchWithTimeout(url, signal);
   if (!res.ok) throw new Error('network');
   return res.json();
+}
+
+// Warning links come from a remote RSS feed, so the scheme is untrusted:
+// window.open('javascript:...') would execute in this page's origin. Only plain
+// web URLs survive, anything else falls back to the official INMET page.
+export function safeExternalUrl(link, fallback = INMET_HOME) {
+  try {
+    const url = new URL(link);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export async function geocode(name, signal) {
@@ -108,7 +145,9 @@ export function normalizeWarning(item) {
   return {
     title: cleanText(String(item.title || '')),
     description: cleanText(String(item.description || '')),
-    link: item.link || '',
+    // Sanitized at the single choke point every warning passes through, so no
+    // call site can open an unvalidated remote URL.
+    link: item.link ? safeExternalUrl(item.link, '') : '',
   };
 }
 
@@ -138,7 +177,7 @@ export async function fetchInmetWarnings(signal) {
 }
 
 export async function fetchRss(signal) {
-  const res = await fetch(INMET_RSS_URL, { signal });
+  const res = await fetchWithTimeout(INMET_RSS_URL, signal);
   if (!res.ok) throw new Error('network');
   return parseRss(await res.text());
 }
