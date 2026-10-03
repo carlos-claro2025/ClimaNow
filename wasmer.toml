@@ -1,0 +1,5 @@
+[package]
+name = "carlosklaro/climanow"
+version = "1.0.0"
+description = "ClimaNow - previsao do tempo, avisos do INMET e alertas do CEMADEN para cidades do Brasil"
+readme = "README.md"
