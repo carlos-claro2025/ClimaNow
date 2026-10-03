@@ -148,7 +148,7 @@ export const CEMADEN_BASES: string[] = [
   import.meta.env.VITE_CEMADEN_BASE,
   '/api/cemaden',
   'https://cemaden-proxy.wasmer.app',
-].filter(Boolean);
+].filter((base): base is string => Boolean(base));
 
 export const EMPTY_CEMADEN: CemadenData = { muitoAlto: 0, alto: 0, moderado: 0, geo: 0, hidro: 0, atualizado: '' };
 

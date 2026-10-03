@@ -44,7 +44,7 @@ export default function RainPage() {
       // city instead of the sum of all of them. A city that fails is dropped on
       // its own instead of blanking the whole list.
       const results = await Promise.all(
-        MONITORED.map(async (name) => {
+        MONITORED.map(async (name): Promise<RainItem | null> => {
           try {
             const g = await geocode(name, signal);
             if (!g) return null;

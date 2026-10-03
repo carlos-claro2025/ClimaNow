@@ -12,6 +12,7 @@ import {
   fetchCemaden,
   fetchJson,
   formatHour,
+  isNightHour,
   forecastUrl,
   formatDate,
   formatValue,
@@ -136,17 +137,17 @@ export default function WeatherPage() {
                 const current = f.current || {};
                 setWeather({
                   place: `${g.name}, ${g.admin1 || g.country || 'Brasil'}`,
-                  temp: current.temperature_2m,
-                  feelsLike: current.apparent_temperature,
-                  code: current.weather_code,
+                                  temp: current.temperature_2m ?? null,
+                                  feelsLike: current.apparent_temperature ?? null,
+                                  code: current.weather_code ?? null,
                   isDay: !!current.is_day,
-                  wind: current.wind_speed_10m,
-                  windDirection: current.wind_direction_10m,
-                  gusts: current.wind_gusts_10m,
-                  humidity: current.relative_humidity_2m,
-                  pressure: Number.isFinite(current.pressure_msl) ? Math.round(current.pressure_msl) : null,
-                  cloudCover: current.cloud_cover,
-                  precipitation: current.precipitation,
+                                  wind: current.wind_speed_10m ?? null,
+                                  windDirection: current.wind_direction_10m ?? null,
+                                  gusts: current.wind_gusts_10m ?? null,
+                                  humidity: current.relative_humidity_2m ?? null,
+                                  pressure: Number.isFinite(current.pressure_msl) ? Math.round(current.pressure_msl!) : null,
+                                  cloudCover: current.cloud_cover ?? null,
+                                  precipitation: current.precipitation ?? null,
                   latitude: g.latitude,
                   longitude: g.longitude,
                 });
@@ -192,16 +193,16 @@ export default function WeatherPage() {
   const loadComparison = useCallback(async (signal?: AbortSignal) => {
     try {
       const temps = await Promise.all(
-        MONITORED.map(async (name) => {
+          MONITORED.map(async (name): Promise<Place | null> => {
           const g = await geocode(name, signal);
           if (!g) return null;
           const f = await fetchJson<{ current?: { temperature_2m?: number } }>(forecastUrl(g.latitude, g.longitude, 'current=temperature_2m'), signal);
           const temp = f.current?.temperature_2m;
-          return Number.isFinite(temp) ? { name, temp } : null;
+                    return typeof temp === 'number' ? { name, temp } : null;
         }),
       );
       if (signal?.aborted) return;
-      const valid = temps.filter((t): t is Place => t !== null).sort((a, b) => b.temp! - a.temp!);
+        const valid = temps.filter((t): t is Place => t !== null).sort((a, b) => (b.temp ?? 0) - (a.temp ?? 0));
       setComparison({ hot: valid[0] || EMPTY_PLACE, cold: valid[valid.length - 1] || EMPTY_PLACE });
     } catch {
       if (signal?.aborted) return;
@@ -271,10 +272,10 @@ export default function WeatherPage() {
   // Windy pinpoints the selected city. It used to carry a hardcoded Goiânia
   // marker, so the radar of São Paulo or Recife opened Goiânia.
   const radarUrl = useMemo(() => {
-    const { latitude, longitude } = weather || {};
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      return 'https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface';
-    }
+      if (!weather) {
+        return 'https://www.windy.com/-Rain-radar?metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface';
+      }
+      const { latitude, longitude } = weather;
     // Zoom level 10 gives a good city-level view; 8 is regional, 12 is street-level.
     const zoom = 10;
     return `https://www.windy.com/-Rain-radar?lat=${latitude.toFixed(4)}&lon=${longitude.toFixed(4)}&zoom=${zoom}&metricRad=-mm&metricTemp=C&metricWind=km/h&overlay=radar&level=surface`;

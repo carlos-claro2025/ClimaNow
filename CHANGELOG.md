@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-10-03 — Previsão enriquecida, confiança de chuva e typecheck
+
+### 🌦️ Precisão e riqueza de dados
+
+| # | Melhoria | Detalhe |
+|---|----------|---------|
+| 29 | **Uma única requisição de clima** | `current` + `hourly` + `daily` juntas — blocos nunca discordam entre si |
+| 30 | **Sensação térmica e rajadas** | "Parece que" + rajadas de vento no card principal |
+|  | **Cobertura de nuvens e precipitação** | Novos campos exibidos no detalhe |
+| 31 | **Rosa dos ventos em 8 pontos** | Rótulos em português (N, NE, L, SE…) em vez de graus |
+| 32 | **Faixa horária de 24h** | `forecast_hours=24` relativo à hora atual, já no fuso da cidade |
+| 33 | **Previsão de 7 dias** | Máx/mín + chance de chuva + índice UV por dia |
+| 34 | **Atualização automática** | Recarrega sozinho a cada 10 min (`AUTO_REFRESH_MS`) |
+| 35 | **Ícone de lua após as 18:00** | `isNightHour()` — noite = 18:00–05:59 |
+
+> Nota: o MSN Clima usa dados licenciados/proprietários que não podem ser
+> replicados. O ganho aqui é **completude e frescor** dos dados, não "exatidão"
+> idêntica.
+
+### 🌧️ Monitor de Chuva
+
+| # | Melhoria | Detalhe |
+|---|----------|---------|
+| 36 | **Confiança em 3 níveis** | `alta` / `média` / `baixa` a partir de 3 sinais (código WMO, precipitação real, cobertura de nuvens) |
+| 37 | **Chuva em mm/h e % de nuvens** | Cada chip mostra o valor medido, não só "está chovendo" |
+| 38 | **Ordenação por confiança** | Cidades confirmadas primeiro |
+| 39 | **Link do Windy com lat/lon** | `lat=…&lon=…&zoom=10` no lugar do marcador fixo |
+
+### 🔧 Qualidade e Tooling
+
+| # | Adição | Benefício |
+|---|--------|-----------|
+| 40 | **Script `npm run typecheck`** | `tsc --noEmit` roda no CI |
+| 41 | **`src/vite-env.d.ts`** | Tipa `import.meta.env.VITE_CEMADEN_BASE` |
+| 42 | **23 erros de tipo corrigidos** | Todos os campos da API agora usam `?? null` corretamente |
+| 43 | **`tsconfig.json` reparado** | Removido `baseUrl` (removido no TypeScript 7) e o alias `@/*` nunca usado |
+| 44 | **CI roda typecheck + testes** | Antes o build passava com `isNightHour is not defined` |
+
+> **Por que isso importa:** `vite build` **não** acusa identificadores não
+> definidos. O bug `isNightHour is not defined` chegou até a tela do usuário
+> porque só a ExecutionBoundary percebia. O `typecheck` fecha essa brecha.
+
+---
+
 ## 2026-10-02 — Melhorias e Correções
 
 ### 🐛 Correções de Bugs (7 itens)
@@ -90,6 +134,12 @@
 
 | Hash | Mensagem |
 |------|----------|
+| `HEAD` | fix: import isNightHour; add typecheck script and CI step; repair tsconfig; fix 23 type errors |
+| `f3114bc` | feat: moon icon for night hours in the hourly strip |
+| `ba69075` | feat: enriched forecast — feels-like, gusts, cloud cover, 24h strip, 7-day forecast |
+| `6c7df12` | feat: rain confidence levels (alta/média/baixa) with precipitation and cloud cover |
+| `d7008c3` | fix: Windy radar link now uses lat/lon/zoom instead of a fixed marker |
+| `5acf897` | docs: add CHANGELOG with all improvements |
 | `7bc0cf1` | fix: add name, admin1, country to Coordinates interface and KNOWN_COORDS |
 | `7fa55f3` | refactor: migrate to TypeScript |
 | `c4600bf` | feat: add PWA support with manifest and service worker |

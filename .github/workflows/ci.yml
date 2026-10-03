@@ -16,5 +16,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
+            # typecheck before build: `vite build` does not report undefined identifiers,
+            # so a missing import only surfaced at runtime as a ReferenceError.
+            - run: npm run typecheck
+            - run: npm run lint
+            - run: npm test
+            - run: npm run build
