@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      lucide-react:
+        patterns:
+          - "lucide-react"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-router-dom"
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/plugin-react"

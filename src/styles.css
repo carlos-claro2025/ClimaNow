@@ -329,11 +329,72 @@ button {
   gap: 10px;
 }
 
+/* Seven days need a denser grid than the three-column layout; they scroll
+   horizontally on narrow screens instead of collapsing to unreadable slivers. */
+.forecast-grid-7 {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
 .forecast-card, .rain-card {
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 14px;
+}
+
+.feels-like {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.metric-sub {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+
+.hourly {
+  margin-top: 18px;
+}
+
+.hourly-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.hourly-item {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.hourly-time {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.hourly-temp {
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.hourly-rain {
+  color: var(--primary);
+  font-size: 0.65rem;
+  margin-top: 2px;
+}
+
+.forecast-rain, .forecast-uv {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 4px;
 }
 
 .rain-grid {
@@ -624,4 +685,17 @@ button {
   }
   .cemade-card:nth-child(4) { grid-column: 1 / 2; }
   .cemade-card:nth-child(5) { grid-column: 2 / 4; }
+}
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

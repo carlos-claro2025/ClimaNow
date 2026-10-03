@@ -1,7 +1,13 @@
 import { AlertTriangle } from 'lucide-react';
-import { normalizeWarning } from '../lib/clima';
+import { normalizeWarning, type Warning } from '../lib/clima';
 
-export default function InmetBar({ warnings, ticker, onOpen }) {
+interface InmetBarProps {
+  warnings: Warning[];
+  ticker: Warning[];
+  onOpen: () => void;
+}
+
+export default function InmetBar({ warnings, ticker, onOpen }: InmetBarProps) {
   const displayItems = ticker.length ? ticker : warnings;
 
   if (displayItems.length === 0) return null;

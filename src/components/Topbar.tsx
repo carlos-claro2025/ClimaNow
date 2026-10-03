@@ -1,7 +1,13 @@
 import { Sun, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export default function Topbar({ theme, onToggle, city }) {
+interface TopbarProps {
+  theme: 'claro' | 'escuro';
+  onToggle: () => void;
+  city: string | null;
+}
+
+export default function Topbar({ theme, onToggle, city }: TopbarProps) {
   const homeParams = new URLSearchParams({ tema: theme });
   if (city) homeParams.set('cidade', city);
 
@@ -12,7 +18,9 @@ export default function Topbar({ theme, onToggle, city }) {
         <span>ClimaNow</span>
       </Link>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Link className="chip" to={`/chuva/?${new URLSearchParams({ tema: theme })}`}>
+        {/* Carries the current city across, so going back to the weather page
+            from the rain monitor does not reset the selection. */}
+        <Link className="chip" to={`/chuva/?${homeParams}`}>
           Monitor de Chuva
         </Link>
         <button type="button" className="theme-btn" onClick={onToggle} aria-label="Alternar tema">
