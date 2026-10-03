@@ -6,12 +6,101 @@ import {
   POPULAR,
   forecastUrl,
   formatDate,
+  formatHour,
   formatValue,
   isRaining,
   normalizeWarning,
   parseRss,
   safeExternalUrl,
+  uvLabel,
+  weatherQuery,
+  windDirectionLabel,
 } from '../lib/clima';
+
+describe('formatHour', () => {
+  it('reads the hour straight off the naive local timestamp', () => {
+    expect(formatHour('2026-10-03T13:00')).toBe('13h');
+  });
+
+  it('zero-pads single-digit hours', () => {
+    expect(formatHour('2026-10-03T07:00')).toBe('07h');
+  });
+
+  it('keeps midnight at 00h rather than rolling over to 24h', () => {
+    expect(formatHour('2026-10-03T00:00')).toBe('00h');
+  });
+
+  it('falls back when the string is malformed', () => {
+    expect(formatHour('not-a-timestamp')).toBe('--h');
+  });
+});
+
+describe('windDirectionLabel', () => {
+  it('maps the eight cardinal points in Portuguese', () => {
+    expect(windDirectionLabel(0)).toBe('N');
+    expect(windDirectionLabel(45)).toBe('NE');
+    expect(windDirectionLabel(90)).toBe('L');
+    expect(windDirectionLabel(180)).toBe('S');
+    expect(windDirectionLabel(270)).toBe('O');
+  });
+
+  it('rounds to the nearest point', () => {
+    expect(windDirectionLabel(20)).toBe('N');
+    expect(windDirectionLabel(340)).toBe('N');
+  });
+
+  it('normalises out-of-range degrees', () => {
+    expect(windDirectionLabel(360)).toBe('N');
+    expect(windDirectionLabel(450)).toBe('L');
+  });
+
+  it('returns -- when there is no reading', () => {
+    expect(windDirectionLabel(null)).toBe('--');
+    expect(windDirectionLabel(undefined)).toBe('--');
+    expect(windDirectionLabel(NaN)).toBe('--');
+  });
+});
+
+describe('uvLabel', () => {
+  it('uses the standard UV risk bands', () => {
+    expect(uvLabel(1)).toBe('Baixo');
+    expect(uvLabel(4)).toBe('Moderado');
+    expect(uvLabel(7)).toBe('Alto');
+    expect(uvLabel(10)).toBe('Muito alto');
+    expect(uvLabel(12)).toBe('Extremo');
+  });
+
+  it('returns -- without a reading', () => {
+    expect(uvLabel(null)).toBe('--');
+  });
+});
+
+describe('weatherQuery', () => {
+  it('asks for current, hourly and daily in one request', () => {
+    const query = weatherQuery();
+    expect(query).toContain('current=');
+    expect(query).toContain('hourly=');
+    expect(query).toContain('daily=');
+  });
+
+  it('defaults to a week and 24 hours', () => {
+    expect(weatherQuery()).toContain('forecast_days=7');
+    expect(weatherQuery()).toContain('forecast_hours=24');
+  });
+
+  it('honours custom windows', () => {
+    expect(weatherQuery(3, 12)).toContain('forecast_days=3');
+    expect(weatherQuery(3, 12)).toContain('forecast_hours=12');
+  });
+
+  it('includes the fields the page renders', () => {
+    const query = weatherQuery();
+    expect(query).toContain('apparent_temperature');
+    expect(query).toContain('precipitation_probability');
+    expect(query).toContain('wind_gusts_10m');
+    expect(query).toContain('uv_index_max');
+  });
+});
 
 describe('formatValue', () => {
   it('formats a number with unit', () => {

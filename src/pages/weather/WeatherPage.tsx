@@ -11,11 +11,16 @@ import {
   POPULAR,
   fetchCemaden,
   fetchJson,
+  formatHour,
   forecastUrl,
   formatDate,
   formatValue,
   geocode,
+  uvLabel,
+  weatherQuery,
+  windDirectionLabel,
   type CemadenData,
+  type WeatherResponse,
 } from '../../lib/clima';
 import { iconFor, labelFor } from '../../lib/icons';
 import { useInmetAlerts } from '../../lib/useInmetAlerts';
@@ -24,11 +29,16 @@ import { useTheme } from '../../lib/useTheme';
 interface WeatherData {
   place: string;
   temp: number | null;
+  feelsLike: number | null;
   code: number | null;
   isDay: boolean;
   wind: number | null;
+  windDirection: number | null;
+  gusts: number | null;
   humidity: number | null;
   pressure: number | null;
+  cloudCover: number | null;
+  precipitation: number | null;
   latitude: number;
   longitude: number;
 }
@@ -38,6 +48,15 @@ interface ForecastDay {
   code: number;
   max: number;
   min: number;
+  rainChance: number | null;
+  uv: number | null;
+}
+
+interface HourPoint {
+  time: string;
+  temp: number | null;
+  rainChance: number | null;
+  code: number | null;
 }
 
 interface Place {
@@ -52,6 +71,7 @@ const MAX_POPULAR = 7;
 // to them. Replacing the list with search history left a single chip after the
 // first search, hiding São Paulo, Rio, Belo Horizonte and Brasília.
 const MAX_TRACKED_CITIES = 20;
+const AUTO_REFRESH_MS = 10 * 60 * 1000;
 
 export default function WeatherPage() {
   const [params, setParams] = useSearchParams();
@@ -67,6 +87,7 @@ export default function WeatherPage() {
   const [error, setError] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
+    const [hourly, setHourly] = useState<HourPoint[]>([]);
   const [popular, setPopular] = useState<string[]>([...POPULAR]);
   const [comparison, setComparison] = useState<{ hot: Place; cold: Place }>({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
   const [cemadem, setCemadem] = useState<CemadenData & { error?: boolean }>(EMPTY_CEMADEN);
@@ -104,38 +125,54 @@ export default function WeatherPage() {
       try {
         const g = await geocode(query, signal);
         if (!g) throw new Error('notfound');
-        const f = await fetchJson<{
-          current?: { temperature_2m?: number; weather_code?: number; is_day?: number; wind_speed_10m?: number; relative_humidity_2m?: number; pressure_msl?: number };
-          daily?: { time?: string[]; weather_code?: number[]; temperature_2m_max?: number[]; temperature_2m_min?: number[] };
-        }>(
-          forecastUrl(
-            g.latitude,
-            g.longitude,
-            'forecast_days=3&current=temperature_2m,weather_code,is_day,wind_speed_10m,relative_humidity_2m,pressure_msl&daily=weather_code,temperature_2m_max,temperature_2m_min',
-          ),
-          signal,
-        );
-        if (signal?.aborted) return;
-        setWeather({
-          place: `${g.name}, ${g.admin1 || g.country || 'Brasil'}`,
-          temp: f.current?.temperature_2m,
-          code: f.current?.weather_code,
-          isDay: !!f.current?.is_day,
-          wind: f.current?.wind_speed_10m,
-          humidity: f.current?.relative_humidity_2m,
-          pressure: Number.isFinite(f.current?.pressure_msl) ? Math.round(f.current.pressure_msl) : null,
-          latitude: g.latitude,
-          longitude: g.longitude,
-        });
-        setForecast(
-          (f.daily?.time || []).slice(0, 3).map((d, idx) => ({
-            date: d,
-            code: f.daily!.weather_code![idx],
-            max: f.daily!.temperature_2m_max![idx],
-            min: f.daily!.temperature_2m_min![idx],
-          })),
-        );
-        setLastUpdate(new Date());
+                // Single request for current + 24h + 7d. `forecast_hours` is relative to
+                // the current hour, so the strip always starts at "now" in the city's
+                // own timezone without any client-side slicing.
+                const f = await fetchJson<WeatherResponse>(
+                  forecastUrl(g.latitude, g.longitude, weatherQuery()),
+                  signal,
+                );
+                if (signal?.aborted) return;
+                const current = f.current || {};
+                setWeather({
+                  place: `${g.name}, ${g.admin1 || g.country || 'Brasil'}`,
+                  temp: current.temperature_2m,
+                  feelsLike: current.apparent_temperature,
+                  code: current.weather_code,
+                  isDay: !!current.is_day,
+                  wind: current.wind_speed_10m,
+                  windDirection: current.wind_direction_10m,
+                  gusts: current.wind_gusts_10m,
+                  humidity: current.relative_humidity_2m,
+                  pressure: Number.isFinite(current.pressure_msl) ? Math.round(current.pressure_msl) : null,
+                  cloudCover: current.cloud_cover,
+                  precipitation: current.precipitation,
+                  latitude: g.latitude,
+                  longitude: g.longitude,
+                });
+
+                const daily = f.daily || {};
+                setForecast(
+                  (daily.time || []).slice(0, 7).map((date, idx) => ({
+                    date,
+                    code: daily.weather_code?.[idx] ?? 0,
+                    max: daily.temperature_2m_max?.[idx] ?? 0,
+                    min: daily.temperature_2m_min?.[idx] ?? 0,
+                    rainChance: daily.precipitation_probability_max?.[idx] ?? null,
+                    uv: daily.uv_index_max?.[idx] ?? null,
+                  })),
+                );
+
+                const hours = f.hourly || {};
+                setHourly(
+                  (hours.time || []).map((time, idx) => ({
+                    time,
+                    temp: hours.temperature_2m?.[idx] ?? null,
+                    rainChance: hours.precipitation_probability?.[idx] ?? null,
+                    code: hours.weather_code?.[idx] ?? null,
+                  })),
+                );
+                setLastUpdate(new Date());
       } catch (e) {
         if (signal?.aborted) return;
         setError(e instanceof Error && e.message === 'notfound' ? 'Cidade não encontrada.' : 'Falha ao consultar clima.');
@@ -192,6 +229,15 @@ export default function WeatherPage() {
     })();
     return () => controller.abort();
   }, [city, loadData, reloadToken]);
+
+    // Open-Meteo publishes a new model run roughly every 15 minutes. Polling at 10
+    // catches the update without hammering the API, and a stale reading is worse
+    // than a slightly slower page — the whole point is that the numbers on screen
+    // match what a commercial app would show.
+    useEffect(() => {
+      const timer = setInterval(() => setReloadToken((n) => n + 1), AUTO_REFRESH_MS);
+      return () => clearInterval(timer);
+    }, []);
 
   const selectCity = useCallback(
     (name: string) => {
@@ -312,44 +358,93 @@ export default function WeatherPage() {
           <div>
             <div className="temp">{pending ? '--°C' : formatValue(weather?.temp ?? 0, '°C')}</div>
             <div>{pending ? '--' : status}</div>
+                    {!pending && weather?.feelsLike != null && (
+                      <div className="feels-like">Sensação {formatValue(weather.feelsLike, '°C')}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="metrics">
+                  <div className="metric">
+                    <div className="label">Vento</div>
+                    <div className="value">{pending ? '-- km/h' : formatValue(weather?.wind ?? 0, 'km/h')}</div>
+                    {!pending && weather?.windDirection != null && (
+                      <div className="metric-sub">{windDirectionLabel(weather.windDirection)}</div>
+                    )}
+                  </div>
+                  <div className="metric">
+                    <div className="label">Rajadas</div>
+                    <div className="value">{pending ? '-- km/h' : formatValue(weather?.gusts ?? 0, 'km/h')}</div>
+                  </div>
+                  <div className="metric">
+                    <div className="label">Umidade</div>
+                    <div className="value">{pending ? '-- %' : formatValue(weather?.humidity ?? 0, '%', 0)}</div>
           </div>
-        </div>
-        <div className="metrics">
-          <div className="metric">
-            <div className="label">Vento</div>
-            <div className="value">{pending ? '-- km/h' : formatValue(weather?.wind ?? 0, 'km/h')}</div>
-          </div>
-          <div className="metric">
-            <div className="label">Umidade</div>
-            <div className="value">{pending ? '-- %' : formatValue(weather?.humidity ?? 0, '%', 0)}</div>
-          </div>
-          <div className="metric">
-            <div className="label">Pressão</div>
-            <div className="value">{pending ? '-- hPa' : formatValue(weather?.pressure ?? 0, 'hPa', 0)}</div>
-          </div>
-          <div className="metric">
-            <div className="label">Relógio</div>
-            <div className="value">
-              <Clock />
-            </div>
-          </div>
-        </div>
-        <div className="forecast">
-          <div className="eyebrow" style={{ color: 'var(--primary)', marginBottom: 10 }}>
-            Próximos 3 dias
-          </div>
-          <div className="forecast-grid">
-            {forecast.map((d) => (
-              <div className="forecast-card" key={d.date}>
-                <div>{formatDate(new Date(`${d.date}T00:00:00`))}</div>
-                <div style={{ margin: '10px 0' }}>{iconFor(d.code, true)}</div>
-                <div>{labelFor(d.code)}</div>
-                <div>Máx: {formatValue(d.max, '°C')}</div>
-                <div>Min: {formatValue(d.min, '°C')}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+                  <div className="metric">
+                    <div className="label">Pressão</div>
+                    <div className="value">{pending ? '-- hPa' : formatValue(weather?.pressure ?? 0, 'hPa', 0)}</div>
+                  </div>
+                  <div className="metric">
+                    <div className="label">Nuvens</div>
+                    <div className="value">{pending ? '-- %' : formatValue(weather?.cloudCover ?? 0, '%', 0)}</div>
+                  </div>
+                  <div className="metric">
+                    <div className="label">Chuva (1h)</div>
+                    <div className="value">{pending ? '-- mm' : formatValue(weather?.precipitation ?? 0, 'mm')}</div>
+                  </div>
+                  <div className="metric">
+                    <div className="label">Relógio</div>
+                    <div className="value">
+                      <Clock />
+                    </div>
+                  </div>
+                  <div className="metric">
+                    <div className="label">Fonte</div>
+                    <div className="value" style={{ fontSize: '0.8rem' }}>
+                      Open-Meteo
+                    </div>
+                  </div>
+                </div>
+                {hourly.length > 0 && (
+                  <div className="hourly">
+                    <div className="eyebrow" style={{ color: 'var(--primary)', marginBottom: 10 }}>
+                      Próximas 24 horas
+                    </div>
+                    <div className="hourly-strip">
+                      {hourly.map((h) => (
+                        <div className="hourly-item" key={h.time}>
+                          <div className="hourly-time">{formatHour(h.time)}</div>
+                          <div>{iconFor(h.code ?? 0, true)}</div>
+                          <div className="hourly-temp">{h.temp != null ? `${Math.round(h.temp)}°` : '--'}</div>
+                          {h.rainChance != null && h.rainChance > 0 && (
+                            <div className="hourly-rain">{h.rainChance}%</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="forecast">
+                  <div className="eyebrow" style={{ color: 'var(--primary)', marginBottom: 10 }}>
+                    Próximos 7 dias
+                  </div>
+                  <div className="forecast-grid forecast-grid-7">
+                    {forecast.map((d) => (
+                      <div className="forecast-card" key={d.date}>
+                        <div>{formatDate(new Date(`${d.date}T00:00:00`))}</div>
+                        <div style={{ margin: '10px 0' }}>{iconFor(d.code, true)}</div>
+                        <div>{labelFor(d.code)}</div>
+                        <div>Máx: {formatValue(d.max, '°C')}</div>
+                        <div>Min: {formatValue(d.min, '°C')}</div>
+                        {d.rainChance != null && d.rainChance > 0 && (
+                          <div className="forecast-rain">Chuva: {d.rainChance}%</div>
+                        )}
+                        {d.uv != null && d.uv >= 3 && (
+                          <div className="forecast-uv">UV: {uvLabel(d.uv)}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
         {error ? <div className="error">{error}</div> : null}
 
         <div className="cemadem-stats">

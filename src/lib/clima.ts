@@ -24,6 +24,89 @@ export interface CemadenData {
   atualizado: string;
 }
 
+// One request asks Open-Meteo for the current block, the next 24 hours and the
+// coming week together. The API derives every field from the same model run, so
+// a single request keeps the headline temperature, the hourly strip and the
+// daily cards consistent with each other. Splitting them across requests let
+// them disagree by a degree or two whenever an update landed mid-way.
+export interface CurrentWeather {
+  temperature_2m?: number;
+  apparent_temperature?: number;
+  relative_humidity_2m?: number;
+  is_day?: number;
+  weather_code?: number;
+  cloud_cover?: number;
+  pressure_msl?: number;
+  wind_speed_10m?: number;
+  wind_direction_10m?: number;
+  wind_gusts_10m?: number;
+  precipitation?: number;
+}
+
+export interface HourlyWeather {
+  time?: string[];
+  temperature_2m?: number[];
+  apparent_temperature?: number[];
+  precipitation_probability?: number[];
+  weather_code?: number[];
+  wind_speed_10m?: number[];
+}
+
+export interface DailyWeather {
+  time?: string[];
+  weather_code?: number[];
+  temperature_2m_max?: number[];
+  temperature_2m_min?: number[];
+  precipitation_probability_max?: number[];
+  uv_index_max?: number[];
+}
+
+export interface WeatherResponse {
+  current?: CurrentWeather;
+  hourly?: HourlyWeather;
+  daily?: DailyWeather;
+}
+
+export const WEATHER_CURRENT_FIELDS = [
+  'temperature_2m',
+  'apparent_temperature',
+  'relative_humidity_2m',
+  'is_day',
+  'weather_code',
+  'cloud_cover',
+  'pressure_msl',
+  'wind_speed_10m',
+  'wind_direction_10m',
+  'wind_gusts_10m',
+  'precipitation',
+] as const;
+
+export const WEATHER_HOURLY_FIELDS = [
+  'temperature_2m',
+  'apparent_temperature',
+  'precipitation_probability',
+  'weather_code',
+  'wind_speed_10m',
+] as const;
+
+export const WEATHER_DAILY_FIELDS = [
+  'weather_code',
+  'temperature_2m_max',
+  'temperature_2m_min',
+  'precipitation_probability_max',
+  'uv_index_max',
+] as const;
+
+export function weatherQuery(forecastDays = 7, forecastHours = 24): string {
+  return [
+    `forecast_days=${forecastDays}`,
+    `forecast_hours=${forecastHours}`,
+    `current=${WEATHER_CURRENT_FIELDS.join(',')}`,
+    `hourly=${WEATHER_HOURLY_FIELDS.join(',')}`,
+    `daily=${WEATHER_DAILY_FIELDS.join(',')}`,
+  ].join('&');
+}
+
 // Hardcoded coordinates for the monitored cities so the rain page doesn't need
 // 10 geocoding requests on every mount. The TTL cache below covers everything
 // else, so a city searched once is never re-fetched within the window.
@@ -128,6 +211,33 @@ export function forecastUrl(latitude: number, longitude: number, params: string)
 
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).format(date);
+}
+
+// Open-Meteo returns naive local timestamps ("2026-10-03T13:00") already shifted
+// into the city's own timezone. Handing those to `new Date()` would re-read them
+// as the visitor's local time and shift every hour by the difference between the
+// two, so the label is cut straight off the string instead.
+export function formatHour(isoTime: string): string {
+  const hour = Number(isoTime.slice(11, 13));
+  return Number.isFinite(hour) ? `${String(hour).padStart(2, '0')}h` : '--h';
+}
+
+// Eight-point compass in Portuguese, which is what Brazilian forecasts print.
+const COMPASS_8 = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO'] as const;
+
+export function windDirectionLabel(degrees?: number | null): string {
+  if (degrees == null || !Number.isFinite(degrees)) return '--';
+  const normalized = ((degrees % 360) + 360) % 360;
+  return COMPASS_8[Math.round(normalized / 45) % 8];
+}
+
+export function uvLabel(uv?: number | null): string {
+  if (uv == null || !Number.isFinite(uv)) return '--';
+  if (uv < 3) return 'Baixo';
+  if (uv < 6) return 'Moderado';
+  if (uv < 8) return 'Alto';
+  if (uv < 11) return 'Muito alto';
+  return 'Extremo';
 }
 
 function cleanText(html: string): string {
