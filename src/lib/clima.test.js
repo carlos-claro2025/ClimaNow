@@ -8,8 +8,9 @@ import {
   formatDate,
   formatHour,
   formatValue,
-  isRaining,
-  normalizeWarning,
+    isNightHour,
+    isRaining,
+    normalizeWarning,
   parseRss,
   safeExternalUrl,
   uvLabel,
@@ -34,6 +35,30 @@ describe('formatHour', () => {
     expect(formatHour('not-a-timestamp')).toBe('--h');
   });
 });
+
+  describe('isNightHour', () => {
+    it('treats 18:00 onward as night', () => {
+      expect(isNightHour('2026-10-03T18:00')).toBe(true);
+      expect(isNightHour('2026-10-03T21:00')).toBe(true);
+      expect(isNightHour('2026-10-03T23:00')).toBe(true);
+    });
+
+    it('treats the small hours as night too, so 03:00 is not drawn with a sun', () => {
+      expect(isNightHour('2026-10-04T00:00')).toBe(true);
+      expect(isNightHour('2026-10-04T03:00')).toBe(true);
+      expect(isNightHour('2026-10-04T05:00')).toBe(true);
+    });
+
+    it('treats daytime as day', () => {
+      expect(isNightHour('2026-10-03T06:00')).toBe(false);
+      expect(isNightHour('2026-10-03T13:00')).toBe(false);
+      expect(isNightHour('2026-10-03T17:00')).toBe(false);
+    });
+
+    it('defaults to day when the timestamp is malformed', () => {
+      expect(isNightHour('not-a-timestamp')).toBe(false);
+    });
+  });
 
 describe('windDirectionLabel', () => {
   it('maps the eight cardinal points in Portuguese', () => {

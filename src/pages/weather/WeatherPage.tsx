@@ -413,7 +413,7 @@ export default function WeatherPage() {
                       {hourly.map((h) => (
                         <div className="hourly-item" key={h.time}>
                           <div className="hourly-time">{formatHour(h.time)}</div>
-                          <div>{iconFor(h.code ?? 0, true)}</div>
+                          <div>{iconFor(h.code ?? 0, !isNightHour(h.time))}</div>
                           <div className="hourly-temp">{h.temp != null ? `${Math.round(h.temp)}°` : '--'}</div>
                           {h.rainChance != null && h.rainChance > 0 && (
                             <div className="hourly-rain">{h.rainChance}%</div>

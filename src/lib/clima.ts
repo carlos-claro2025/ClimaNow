@@ -217,9 +217,24 @@ export function formatDate(date: Date): string {
 // into the city's own timezone. Handing those to `new Date()` would re-read them
 // as the visitor's local time and shift every hour by the difference between the
 // two, so the label is cut straight off the string instead.
+function hourOf(isoTime: string): number {
+  return Number(isoTime.slice(11, 13));
+}
+
 export function formatHour(isoTime: string): string {
-  const hour = Number(isoTime.slice(11, 13));
+  const hour = hourOf(isoTime);
   return Number.isFinite(hour) ? `${String(hour).padStart(2, '0')}h` : '--h';
+}
+
+// The hourly strip renders one icon per hour and `iconFor` needs to know whether
+// to draw the sun or the moon. The 24-hour block always starts at the current
+// hour, so it runs past 18:00 and wraps past midnight. Night is therefore
+// 18:00-05:59: treating it as strictly "after 18:00" would leave the 00:00-05:00
+// cards showing a sun at three in the morning.
+export function isNightHour(isoTime: string): boolean {
+  const hour = hourOf(isoTime);
+  if (!Number.isFinite(hour)) return false;
+  return hour >= 18 || hour < 6;
 }
 
 // Eight-point compass in Portuguese, which is what Brazilian forecasts print.
