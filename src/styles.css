@@ -706,6 +706,7 @@ button {
 }
 
 .bell-btn {
+  position: relative;
   padding: 8px;
 }
 
@@ -738,6 +739,20 @@ button {
   border-radius: 14px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+}
+
+@media (max-width: 680px) {
+  .topbar-actions {
+    position: relative;
+  }
+
+  .bell-wrapper {
+    position: static;
+  }
+
+  .bell-dropdown {
+    width: min(340px, 100%);
+  }
 }
 
 .bell-dropdown-header {

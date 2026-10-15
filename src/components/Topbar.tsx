@@ -18,7 +18,7 @@ export default function Topbar({ theme, onToggle, city }: TopbarProps) {
         <span className="brand-icon">🌤️</span>
         <span>ClimaNow</span>
       </Link>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="topbar-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {/* Carries the current city across, so going back to the weather page
             from the rain monitor does not reset the selection. */}
         <Link className="chip" to={`/chuva/?${homeParams}`}>
