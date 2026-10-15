@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CloudRain, Flame, LoaderCircle, RefreshCw, Search, Snowflake } from 'lucide-react';
+import { CloudRain, Flame, LoaderCircle, RefreshCw, Search, Snowflake, Bell } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import Clock from '../../components/Clock';
 import Topbar from '../../components/Topbar';
 import InmetBar from '../../components/InmetBar';
 import WarningModal from '../../components/WarningModal';
+import { notificationService } from '../../services/NotificationService';
+import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import {
   EMPTY_CEMADEN,
   MONITORED,
@@ -84,6 +86,7 @@ export default function WeatherPage() {
   const [input, setInput] = useState(city);
   const { warnings, ticker, selectedWarning, setSelectedWarning, refresh: refreshInmet, openWarning } =
     useInmetAlerts();
+  const { permission, requestPermission, isSupported } = useNotificationPermission();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -174,7 +177,49 @@ export default function WeatherPage() {
                   })),
                 );
                 setLastUpdate(new Date());
-      } catch (e) {
+
+                                // Check for weather alerts and trigger notifications
+                                const weatherCode = current.weather_code ?? 0;
+                                const precipitation = current.precipitation ?? 0;
+                                const windSpeed = current.wind_speed_10m ?? 0;
+                                const uvIndex = (f.daily?.uv_index_max?.[0] ?? 0);
+                
+                                // Define severe weather conditions
+                                const isSevereRain = [65, 66, 67, 80, 81, 82].includes(weatherCode);
+                                const isThunderstorm = [95, 96, 99].includes(weatherCode);
+                                const isHeavyRain = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(weatherCode);
+                                const isHighWind = windSpeed > 20; // km/h
+                                const isHighUV = uvIndex > 8;
+                
+                                if (isSevereRain || isThunderstorm || isHeavyRain || isHighWind || isHighUV) {
+                                  const alertTitle = isSevereRain 
+                                    ? 'Chuva Intensa' 
+                                    : isThunderstorm 
+                                      ? 'Tempestade' 
+                                      : isHeavyRain 
+                                        ? 'Chuva Forte' 
+                                        : isHighWind 
+                                          ? 'Vento Forte' 
+                                          : 'UV Alto';
+                  
+                                  const alertDescription = 
+                                    isSevereRain 
+                                                                        ? `Chuva intensa esperada (código ${weatherCode}, ${precipitation.toFixed(1)} mm na última hora)` 
+                                      : isThunderstorm 
+                                        ? `Tempestade com código ${weatherCode}` 
+                                        : isHeavyRain 
+                                                                            ? `Chuva forte esperada (código ${weatherCode})` 
+                                          : isHighWind 
+                                            ? `Ventos de ${Math.round(windSpeed)} km/h` 
+                                            : `Índice UV alto (${Math.round(uvIndex)})`;
+                  
+                                  notificationService.addAlert({
+                                    title: alertTitle,
+                                    description: alertDescription,
+                                    link: '/weather',
+                                  });
+                                }
+                      } catch (e) {
         if (signal?.aborted) return;
         setError(e instanceof Error && e.message === 'notfound' ? 'Cidade não encontrada.' : 'Falha ao consultar clima.');
       } finally {
@@ -296,7 +341,23 @@ export default function WeatherPage() {
         >
           <RefreshCw size={14} />
         </button>
-        {lastUpdate && (
+                {isSupported && (
+                  <button
+                    type="button"
+                    className="chip"
+                    onClick={requestPermission}
+                    style={{ marginBottom: 12, marginLeft: 4 }}
+                    title={permission === 'granted' ? 'Notificações ativadas' : 'Solicitar permissão para notificações'}
+                    aria-label={permission === 'granted' ? 'Notificações ativadas' : 'Solicitar permissão para notificações'}
+                  >
+                    {permission === 'granted' ? (
+                      <Bell size={14} />
+                    ) : (
+                      <Bell size={14} className="bell-off" />
+                    )}
+                  </button>
+                )}
+                {lastUpdate && (
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10 }}>
             Última atualização:{' '}
             {lastUpdate.toLocaleString('pt-BR', {

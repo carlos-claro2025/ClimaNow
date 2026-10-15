@@ -1,5 +1,6 @@
 import { Sun, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import NotificationBell from './NotificationBell';
 
 interface TopbarProps {
   theme: 'claro' | 'escuro';
@@ -23,6 +24,7 @@ export default function Topbar({ theme, onToggle, city }: TopbarProps) {
         <Link className="chip" to={`/chuva/?${homeParams}`}>
           Monitor de Chuva
         </Link>
+        <NotificationBell onBellClick={() => alert('Notificações!')} />
         <button type="button" className="theme-btn" onClick={onToggle} aria-label="Alternar tema">
           {theme === 'claro' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
