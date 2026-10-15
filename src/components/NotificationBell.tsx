@@ -9,22 +9,28 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>(() => notificationService.getAlerts());
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     return notificationService.subscribe(setAlerts);
   }, []);
 
+  const close = () => {
+    setOpen(false);
+    bellRef.current?.focus();
+  };
+
   // Close the panel on outside click or Escape while it is open.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        close();
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') close();
     };
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -39,35 +45,50 @@ export default function NotificationBell() {
   const handleAlertClick = (alert: Alert) => {
     if (!alert.read) notificationService.markAsRead(alert.id);
     if (alert.link) navigate(alert.link);
-    setOpen(false);
+    close();
   };
 
   return (
     <div className="bell-wrapper" ref={wrapperRef}>
       <button
+        ref={bellRef}
         type="button"
         className="chip bell-btn"
-        onClick={() => setOpen(value => !value)}
+        onClick={() => (open ? close() : setOpen(true))}
         aria-expanded={open}
         aria-label="Notificações"
       >
         <Bell size={20} />
         {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
       </button>
+      <span className="sr-only" role="status">
+        {unreadCount > 0 ? `${unreadCount} notificações não lidas` : ''}
+      </span>
 
       {open && (
         <div className="bell-dropdown" role="dialog" aria-label="Central de notificações">
           <div className="bell-dropdown-header">
             <strong>Notificações</strong>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                className="bell-mark-all"
-                onClick={() => notificationService.markAllAsRead()}
-              >
-                Marcar todas como lidas
-              </button>
-            )}
+            <span className="bell-actions">
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  className="bell-mark-all"
+                  onClick={() => notificationService.markAllAsRead()}
+                >
+                  Marcar todas como lidas
+                </button>
+              )}
+              {alerts.length > 0 && (
+                <button
+                  type="button"
+                  className="bell-mark-all"
+                  onClick={() => notificationService.clearAll()}
+                >
+                  Limpar tudo
+                </button>
+              )}
+            </span>
           </div>
 
           {alerts.length === 0 ? (

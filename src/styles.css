@@ -762,6 +762,13 @@ button {
   background: rgba(103, 232, 249, 0.12);
 }
 
+.bell-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
 .bell-empty {
   margin: 0;
   padding: 18px 14px;

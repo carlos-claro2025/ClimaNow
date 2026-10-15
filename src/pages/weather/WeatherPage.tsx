@@ -216,7 +216,8 @@ export default function WeatherPage() {
                                   notificationService.addAlert({
                                     title: alertTitle,
                                     description: alertDescription,
-                                    link: '/',
+                                    link: isSevereRain || isThunderstorm || isHeavyRain ? '/chuva' : '/',
+                                    dedupeKey: `${g.name}|${alertTitle}`,
                                   });
                                 }
                       } catch (e) {
