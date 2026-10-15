@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-15 — Alertas em tempo real e endurecimento das notificações
+
+### 🔔 Alertas e notificações
+
+| # | Adição | Detalhe |
+|---|--------|---------|
+| 45 | **Hook `useNotificationPermission`** | Estado reativo + pedido de permissão de notificações do navegador |
+| 46 | **`NotificationService`** | Fila de alertas com `addAlert`, `markAsRead`, `markAllAsRead`, `dismissAlert`, `clearAll` e `subscribe` |
+| 47 | **Notificação do navegador** | Título `[ClimaNow] …`, corpo com a descrição e **tag estável por condição** — o SO substitui a notificação anterior em vez de empilhar |
+| 48 | **Sino com badge** | Contador de não lidas na topbar |
+| 49 | **Dropdown de notificações** | Lista com título, descrição e horário (pt-BR); marca como lida; fecha com Escape ou clique externo |
+| 50 | **Deduplicação** | Mesma condição (cidade + tipo) não gera novo alerta dentro de 30 min — o auto-refresh de 10 min não faz mais spam |
+| 51 | **Persistência** | Fila salva em `localStorage` (`clima-alerts`); alertas não lidas sobrevivem a recarregamento |
+| 52 | **Limite de 50 alertas** | Fila não cresce sem paro em sessões longas |
+| 53 | **"Limpar tudo"** | Ação para esvaziar a central de notificações |
+| 54 | **Acessibilidade** | Foco volta ao sino ao fechar o dropdown; contagem anunciada via região `aria-live` |
+| 55 | **Link por tipo de alerta** | Alertas de chuva/tempestade abrem `/chuva`; vento e UV ficam na home |
+| 56 | **10 testes do NotificationService** | Dedupe, janela de 30 min, persistência, limite de 50, subscribe/unsubscribe |
+
 ## 2026-10-03 — Previsão enriquecida, confiança de chuva e typecheck
 
 ### 🌦️ Precisão e riqueza de dados
@@ -134,7 +153,9 @@
 
 | Hash | Mensagem |
 |------|----------|
-| `HEAD` | fix: import isNightHour; add typecheck script and CI step; repair tsconfig; fix 23 type errors |
+| `HEAD` | feat: harden weather alerts — dedupe, persistence, queue cap and a11y |
+| `53d1785` | fix: replace placeholder bell alert with real notifications dropdown |
+| `10b5fa1` | feat: real-time weather alerts and browser notifications |
 | `f3114bc` | feat: moon icon for night hours in the hourly strip |
 | `ba69075` | feat: enriched forecast — feels-like, gusts, cloud cover, 24h strip, 7-day forecast |
 | `6c7df12` | feat: rain confidence levels (alta/média/baixa) with precipitation and cloud cover |
@@ -156,3 +177,5 @@
 ## Backup
 
 Tag `backup/antes-das-correcoes` aponta para o commit `6202581` (estado antes das correções).
+
+Tag `v1.0.0-notifications` aponta para o commit `53d1785` (alertas em tempo real + dropdown do sino funcionando, versão considerada estável).
