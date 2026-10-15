@@ -1,58 +1,99 @@
 import { Bell } from 'lucide-react';
-import { notificationService } from '../services/NotificationService';
-import { useEffect, useState } from 'react';
+import { notificationService, type Alert } from '../services/NotificationService';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-interface NotificationBellProps {
-  onBellClick?: () => void;
-}
+const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-export default function NotificationBell({ onBellClick }: NotificationBellProps) {
-  const [unreadCount, setUnreadCount] = useState(() =>
-    notificationService.getUnreadCount()
-  );
+export default function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [alerts, setAlerts] = useState<Alert[]>(() => notificationService.getAlerts());
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    return notificationService.subscribe(() => {
-      setUnreadCount(notificationService.getUnreadCount());
-    });
+    return notificationService.subscribe(setAlerts);
   }, []);
 
-  const handleClick = () => {
-    if (onBellClick) {
-      onBellClick();
-    }
+  // Close the panel on outside click or Escape while it is open.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const unreadCount = alerts.filter(a => !a.read).length;
+
+  const handleAlertClick = (alert: Alert) => {
+    if (!alert.read) notificationService.markAsRead(alert.id);
+    if (alert.link) navigate(alert.link);
+    setOpen(false);
   };
 
   return (
-    <button 
-      className="chip bell-btn" 
-      onClick={handleClick}
-      style={{ position: 'relative', padding: '8px' }}
-      aria-label="Notificações"
-    >
-      <Bell size={20} />
-      {unreadCount > 0 && (
-        <span 
-          className="notification-badge"
-          style={{
-            position: 'absolute',
-            top: '-4px',
-            right: '-4px',
-            backgroundColor: 'var(--primary)',
-            color: 'white',
-            borderRadius: '50%',
-            width: '18px',
-            height: '18px',
-            fontSize: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold'
-          }}
-        >
-          {unreadCount}
-        </span>
+    <div className="bell-wrapper" ref={wrapperRef}>
+      <button
+        type="button"
+        className="chip bell-btn"
+        onClick={() => setOpen(value => !value)}
+        aria-expanded={open}
+        aria-label="Notificações"
+      >
+        <Bell size={20} />
+        {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+      </button>
+
+      {open && (
+        <div className="bell-dropdown" role="dialog" aria-label="Central de notificações">
+          <div className="bell-dropdown-header">
+            <strong>Notificações</strong>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                className="bell-mark-all"
+                onClick={() => notificationService.markAllAsRead()}
+              >
+                Marcar todas como lidas
+              </button>
+            )}
+          </div>
+
+          {alerts.length === 0 ? (
+            <p className="bell-empty">Nenhuma notificação por enquanto.</p>
+          ) : (
+            <ul className="bell-list">
+              {alerts.map(alert => (
+                <li key={alert.id}>
+                  <button
+                    type="button"
+                    className={`bell-item${alert.read ? '' : ' unread'}`}
+                    onClick={() => handleAlertClick(alert)}
+                  >
+                    <span className="bell-item-dot" aria-hidden="true" />
+                    <span className="bell-item-content">
+                      <span className="bell-item-title">{alert.title}</span>
+                      <span className="bell-item-desc">{alert.description}</span>
+                      <span className="bell-item-time">{timeFormatter.format(alert.timestamp)}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
-    </button>
+    </div>
   );
 }

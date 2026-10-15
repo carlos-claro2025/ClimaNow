@@ -24,7 +24,7 @@ export default function Topbar({ theme, onToggle, city }: TopbarProps) {
         <Link className="chip" to={`/chuva/?${homeParams}`}>
           Monitor de Chuva
         </Link>
-        <NotificationBell onBellClick={() => alert('Notificações!')} />
+        <NotificationBell />
         <button type="button" className="theme-btn" onClick={onToggle} aria-label="Alternar tema">
           {theme === 'claro' ? <Moon size={18} /> : <Sun size={18} />}
         </button>

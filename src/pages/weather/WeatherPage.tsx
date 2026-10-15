@@ -216,7 +216,7 @@ export default function WeatherPage() {
                                   notificationService.addAlert({
                                     title: alertTitle,
                                     description: alertDescription,
-                                    link: '/weather',
+                                    link: '/',
                                   });
                                 }
                       } catch (e) {
