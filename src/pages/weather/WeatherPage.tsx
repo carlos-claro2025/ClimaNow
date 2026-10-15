@@ -92,7 +92,6 @@ export default function WeatherPage() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
     const [hourly, setHourly] = useState<HourPoint[]>([]);
-  const [popular, setPopular] = useState<string[]>([...POPULAR]);
   const [comparison, setComparison] = useState<{ hot: Place; cold: Place }>({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
   const [cemadem, setCemadem] = useState<CemadenData & { error?: boolean }>(EMPTY_CEMADEN);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -105,12 +104,15 @@ export default function WeatherPage() {
     }
   });
 
-  useEffect(() => {
+  const popular = useMemo(() => {
     const ranked = Object.entries(searchCounts)
       .sort((a, b) => b[1] - a[1])
       .map(([name]) => name)
       .filter((name) => !POPULAR.includes(name as (typeof POPULAR)[number]));
-    setPopular([...POPULAR, ...ranked].slice(0, MAX_POPULAR));
+    return [...POPULAR, ...ranked].slice(0, MAX_POPULAR);
+  }, [searchCounts]);
+
+  useEffect(() => {
     // Capped so localStorage cannot grow without bound as cities are searched.
     const kept = Object.fromEntries(
       Object.entries(searchCounts)
