@@ -119,15 +119,23 @@ class NotificationService {
   private sendBrowserNotification(alert: Alert): void {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     try {
-      new Notification(`[ClimaNow] ${alert.title}`, {
+      const notification = new Notification(`[ClimaNow] ${alert.title}`, {
         body: alert.description,
-        icon: '/favicon.ico',
+        // /favicon.ico does not exist in this app (it ships favicon.svg), so the
+        // OS fell back to a generic icon.
+        icon: '/icon-192.png',
         // Stable tag per condition so the OS replaces the previous notification
         // instead of stacking a new one on every auto-refresh.
         tag: `weather-alert-${alert.dedupeKey ?? alert.title}`,
         dir: 'ltr',
         lang: 'pt-BR',
       });
+      // Clicking the OS notification brings the app back to the foreground;
+      // without this the click is swallowed and the user stays where they were.
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
     } catch {
       // Some browsers throw when the OS blocks notifications; ignore.
     }

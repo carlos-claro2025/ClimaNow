@@ -1,10 +1,10 @@
 name: CI
 
+# Runs on every push and PR: the previous branch filter never
+# matched because the repository default branch is master, so CI never ran.
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
   build:
