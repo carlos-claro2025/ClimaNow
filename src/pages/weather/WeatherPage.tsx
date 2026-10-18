@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CloudRain, Flame, LoaderCircle, RefreshCw, Search, Snowflake, Bell } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import Clock from '../../components/Clock';
 import Topbar from '../../components/Topbar';
 import InmetBar from '../../components/InmetBar';
 import WarningModal from '../../components/WarningModal';
@@ -13,60 +12,26 @@ import {
   POPULAR,
   fetchCemaden,
   fetchJson,
-  formatHour,
-  isNightHour,
   forecastUrl,
-  formatDate,
   formatValue,
   geocode,
-  uvLabel,
   weatherQuery,
-  windDirectionLabel,
-  type CemadenData,
   type WeatherResponse,
 } from '../../lib/clima';
 import { buildWeatherAlert } from '../../lib/weatherAlerts';
 import { iconFor, labelFor } from '../../lib/icons';
 import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
-
-interface WeatherData {
-  place: string;
-  temp: number | null;
-  feelsLike: number | null;
-  code: number | null;
-  isDay: boolean;
-  wind: number | null;
-  windDirection: number | null;
-  gusts: number | null;
-  humidity: number | null;
-  pressure: number | null;
-  cloudCover: number | null;
-  precipitation: number | null;
-  latitude: number;
-  longitude: number;
-}
-
-interface ForecastDay {
-  date: string;
-  code: number;
-  max: number;
-  min: number;
-  rainChance: number | null;
-  uv: number | null;
-}
-
-interface HourPoint {
-  time: string;
-  temp: number | null;
-  rainChance: number | null;
-  code: number | null;
-}
-
-interface Place {
-  name: string | null;
-  temp: number | null;
-}
+import type {
+  ForecastDay,
+  HourPoint,
+  Place,
+  WeatherData,
+} from '../../lib/weatherTypes';
+import HourlyStrip from '../../components/weather/HourlyStrip';
+import ForecastGrid from '../../components/weather/ForecastGrid';
+import CurrentMetrics from '../../components/weather/CurrentMetrics';
+import CemadenStats, { type CemadenState } from '../../components/weather/CemadenStats';
 
 const EMPTY_PLACE: Place = { name: null, temp: null };
 const DEFAULT_CITY = 'Goiânia';
@@ -94,7 +59,7 @@ export default function WeatherPage() {
   const [forecast, setForecast] = useState<ForecastDay[]>([]);
     const [hourly, setHourly] = useState<HourPoint[]>([]);
   const [comparison, setComparison] = useState<{ hot: Place; cold: Place }>({ hot: EMPTY_PLACE, cold: EMPTY_PLACE });
-  const [cemadem, setCemadem] = useState<CemadenData & { error?: boolean }>(EMPTY_CEMADEN);
+  const [cemadem, setCemadem] = useState<CemadenState>(EMPTY_CEMADEN);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [searchCounts, setSearchCounts] = useState<Record<string, number>>(() => {
@@ -197,8 +162,7 @@ export default function WeatherPage() {
   const refreshCemaden = useCallback(async (signal?: AbortSignal) => {
     const [cemademResult] = await Promise.allSettled([fetchCemaden(signal)]);
     if (signal?.aborted) return;
-    setCemadem(cemademResult.status === 'fulfilled' ? cemademResult.value : { ...EMPTY_CEMADEN, error: true });
-  }, []);
+    setCemadem(cemademResult.status === 'fulfilled' ? cemademResult.value : { ...EMPTY_CEMADEN, error: true });  }, []);
 
   const loadComparison = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -246,7 +210,12 @@ export default function WeatherPage() {
     // than a slightly slower page — the whole point is that the numbers on screen
     // match what a commercial app would show.
     useEffect(() => {
-      const timer = setInterval(() => setReloadToken((n) => n + 1), AUTO_REFRESH_MS);
+      const timer = setInterval(() => {
+        // Nobody is looking at a hidden tab, so refreshing it only burns
+        // battery and API quota. The next visible tick picks the data up.
+        if (document.hidden) return;
+        setReloadToken((n) => n + 1);
+      }, AUTO_REFRESH_MS);
       return () => clearInterval(timer);
     }, []);
 
@@ -390,125 +359,12 @@ export default function WeatherPage() {
                     )}
                   </div>
                 </div>
-                <div className="metrics">
-                  <div className="metric">
-                    <div className="label">Vento</div>
-                    <div className="value">{pending ? '-- km/h' : formatValue(weather?.wind ?? 0, 'km/h')}</div>
-                    {!pending && weather?.windDirection != null && (
-                      <div className="metric-sub">{windDirectionLabel(weather.windDirection)}</div>
-                    )}
-                  </div>
-                  <div className="metric">
-                    <div className="label">Rajadas</div>
-                    <div className="value">{pending ? '-- km/h' : formatValue(weather?.gusts ?? 0, 'km/h')}</div>
-                  </div>
-                  <div className="metric">
-                    <div className="label">Umidade</div>
-                    <div className="value">{pending ? '-- %' : formatValue(weather?.humidity ?? 0, '%', 0)}</div>
-          </div>
-                  <div className="metric">
-                    <div className="label">Pressão</div>
-                    <div className="value">{pending ? '-- hPa' : formatValue(weather?.pressure ?? 0, 'hPa', 0)}</div>
-                  </div>
-                  <div className="metric">
-                    <div className="label">Nuvens</div>
-                    <div className="value">{pending ? '-- %' : formatValue(weather?.cloudCover ?? 0, '%', 0)}</div>
-                  </div>
-                  <div className="metric">
-                    <div className="label">Chuva (1h)</div>
-                    <div className="value">{pending ? '-- mm' : formatValue(weather?.precipitation ?? 0, 'mm')}</div>
-                  </div>
-                  <div className="metric">
-                    <div className="label">Relógio</div>
-                    <div className="value">
-                      <Clock />
-                    </div>
-                  </div>
-                  <div className="metric">
-                    <div className="label">Fonte</div>
-                    <div className="value" style={{ fontSize: '0.8rem' }}>
-                      Open-Meteo
-                    </div>
-                  </div>
-                </div>
-                {hourly.length > 0 && (
-                  <div className="hourly">
-                    <div className="eyebrow" style={{ color: 'var(--primary)', marginBottom: 10 }}>
-                      Próximas 24 horas
-                    </div>
-                    <div className="hourly-strip">
-                      {hourly.map((h) => (
-                        <div className="hourly-item" key={h.time}>
-                          <div className="hourly-time">{formatHour(h.time)}</div>
-                          <div>{iconFor(h.code ?? 0, !isNightHour(h.time))}</div>
-                          <div className="hourly-temp">{h.temp != null ? `${Math.round(h.temp)}°` : '--'}</div>
-                          {h.rainChance != null && h.rainChance > 0 && (
-                            <div className="hourly-rain">{h.rainChance}%</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="forecast">
-                  <div className="eyebrow" style={{ color: 'var(--primary)', marginBottom: 10 }}>
-                    Próximos 7 dias
-                  </div>
-                  <div className="forecast-grid forecast-grid-7">
-                    {forecast.map((d) => (
-                      <div className="forecast-card" key={d.date}>
-                        <div>{formatDate(new Date(`${d.date}T00:00:00`))}</div>
-                        <div style={{ margin: '10px 0' }}>{iconFor(d.code, true)}</div>
-                        <div>{labelFor(d.code)}</div>
-                        <div>Máx: {formatValue(d.max, '°C')}</div>
-                        <div>Min: {formatValue(d.min, '°C')}</div>
-                        {d.rainChance != null && d.rainChance > 0 && (
-                          <div className="forecast-rain">Chuva: {d.rainChance}%</div>
-                        )}
-                        {d.uv != null && d.uv >= 3 && (
-                          <div className="forecast-uv">UV: {uvLabel(d.uv)}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <CurrentMetrics weather={weather} pending={pending} />
+                <HourlyStrip hours={hourly} />
+                <ForecastGrid days={forecast} />
         {error ? <div className="error">{error}</div> : null}
 
-        <div className="cemadem-stats">
-          <div className="cemadem-title">⚠️ Alertas CEMADEN</div>
-          <div className="cemadem-counts">
-            <div className="cemade-card cemade-danger">
-              <div className="cemade-num">{cemadem.muitoAlto}</div>
-              <div className="cemade-label">Muito Alto</div>
-            </div>
-            <div className="cemade-card cemade-warning">
-              <div className="cemade-num">{cemadem.alto}</div>
-              <div className="cemade-label">Alto</div>
-            </div>
-            <div className="cemade-card cemade-moderado">
-              <div className="cemade-num">{cemadem.moderado}</div>
-              <div className="cemade-label">Moderado</div>
-            </div>
-            <div className="cemade-card cemade-geo">
-              <div className="cemade-num">{cemadem.geo}</div>
-              <div className="cemade-label">Mov. Massa</div>
-            </div>
-            <div className="cemade-card cemade-hidro">
-              <div className="cemade-num">{cemadem.hidro}</div>
-              <div className="cemade-label">Risco Hidro.</div>
-            </div>
-          </div>
-          {cemadem.error && (
-            <div style={{ color: '#fbbf24', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
-              Não foi possível carregar dados do CEMADEN
-            </div>
-          )}
-          {cemadem.atualizado && !cemadem.error && (
-            <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 6, textAlign: 'center' }}>
-              Atualizado: {cemadem.atualizado}
-            </div>
-          )}
-        </div>
+        <CemadenStats data={cemadem} />
       </section>
       <WarningModal warning={selectedWarning} onClose={() => setSelectedWarning(null)} />
     </main>

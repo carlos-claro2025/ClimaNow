@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-        "typecheck": "tsc --noEmit -p tsconfig.json",
-        "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {

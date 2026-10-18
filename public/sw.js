@@ -37,7 +37,18 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => caches.match(request)),
     );
+  } else if (request.mode === 'navigate') {
+    // Network-first for the app shell: serving '/' from the cache pinned
+    // returning users to the previous deploy's index.html, and therefore to
+    // the previous deploy's hashed bundles, until they cleared site data.
+    event.respondWith(
+      fetch(request).catch(() =>
+        caches.match(request).then((cached) => cached || caches.match('/index.html')),
+      ),
+    );
   } else {
+    // Hashed asset filenames change on every build, so a cache hit can never
+    // go stale — cache-first keeps repeat loads instant and offline-capable.
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request)),
     );
