@@ -25,6 +25,7 @@ import {
   type CemadenData,
   type WeatherResponse,
 } from '../../lib/clima';
+import { buildWeatherAlert } from '../../lib/weatherAlerts';
 import { iconFor, labelFor } from '../../lib/icons';
 import { useInmetAlerts } from '../../lib/useInmetAlerts';
 import { useTheme } from '../../lib/useTheme';
@@ -180,48 +181,9 @@ export default function WeatherPage() {
                 );
                 setLastUpdate(new Date());
 
-                                // Check for weather alerts and trigger notifications
-                                const weatherCode = current.weather_code ?? 0;
-                                const precipitation = current.precipitation ?? 0;
-                                const windSpeed = current.wind_speed_10m ?? 0;
-                                const uvIndex = (f.daily?.uv_index_max?.[0] ?? 0);
-                
-                                // Define severe weather conditions
-                                const isSevereRain = [65, 66, 67, 80, 81, 82].includes(weatherCode);
-                                const isThunderstorm = [95, 96, 99].includes(weatherCode);
-                                const isHeavyRain = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(weatherCode);
-                                const isHighWind = windSpeed > 20; // km/h
-                                const isHighUV = uvIndex > 8;
-                
-                                if (isSevereRain || isThunderstorm || isHeavyRain || isHighWind || isHighUV) {
-                                  const alertTitle = isSevereRain 
-                                    ? 'Chuva Intensa' 
-                                    : isThunderstorm 
-                                      ? 'Tempestade' 
-                                      : isHeavyRain 
-                                        ? 'Chuva Forte' 
-                                        : isHighWind 
-                                          ? 'Vento Forte' 
-                                          : 'UV Alto';
-                  
-                                  const alertDescription = 
-                                    isSevereRain 
-                                                                        ? `Chuva intensa esperada (código ${weatherCode}, ${precipitation.toFixed(1)} mm na última hora)` 
-                                      : isThunderstorm 
-                                        ? `Tempestade com código ${weatherCode}` 
-                                        : isHeavyRain 
-                                                                            ? `Chuva forte esperada (código ${weatherCode})` 
-                                          : isHighWind 
-                                            ? `Ventos de ${Math.round(windSpeed)} km/h` 
-                                            : `Índice UV alto (${Math.round(uvIndex)})`;
-                  
-                                  notificationService.addAlert({
-                                    title: alertTitle,
-                                    description: alertDescription,
-                                    link: isSevereRain || isThunderstorm || isHeavyRain ? '/chuva' : '/',
-                                    dedupeKey: `${g.name}|${alertTitle}`,
-                                  });
-                                }
+                // Severity rules live in lib/weatherAlerts so they stay unit-testable.
+                const alert = buildWeatherAlert(current, f.daily, g.name ?? '');
+                if (alert) notificationService.addAlert(alert);
                       } catch (e) {
         if (signal?.aborted) return;
         setError(e instanceof Error && e.message === 'notfound' ? 'Cidade não encontrada.' : 'Falha ao consultar clima.');
