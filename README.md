@@ -296,7 +296,9 @@ git push
 
 ## 📝 Licença
 
-Projeto desenvolvido como clone funcional do site original. Uso educacional e pessoal.
+Este projeto está licenciado sob a [Licença MIT](LICENSE) — livre para uso educacional, pessoal e comercial, mantendo o aviso de copyright.
+
+Projeto desenvolvido como clone funcional do site original.
 
 ## 🔗 Links Úteis
 
